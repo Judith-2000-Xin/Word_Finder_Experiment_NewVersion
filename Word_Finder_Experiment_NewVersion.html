@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Touch Word Finder</title>
+  <style>
+    body {
+      font-family: "Times New Roman", serif;
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: justify;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    .hidden { display: none; }
+    .word-box { font-size: 20px; margin: 10px; text-align: center; }
+    .line {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      font-family: monospace;
+      margin: 5px 0;
+      white-space: pre;
+      font-size: calc(1vw + 0.3em);
+    }
+    .word-span {
+      display: inline-block;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-size: inherit;
+    }
+    .word-span:hover { background-color: #dfe6e9; }
+    .correct { background-color: #55efc4; }
+    .wrong { background-color: #fab1a0; }
+    .countdown {
+      font-size: 24px;
+      margin: 20px;
+      text-align: center;
+    }
+    .resting {
+      font-size: 28px;
+      text-align: center;
+      margin-top: 100px;
+    }
+    #game {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div id="prompt">
+    <h2 style="text-align: center">Find these words:</h2>
+    <div id="targetWords" class="word-box"></div>
+    <div class="countdown">Starting in <span id="count">5</span>...</div>
+  </div>
+
+  <div id="rest" class="hidden">
+    <div class="resting">Take a 30-second break...<br>Next page starting in <span id="restCount">30</span> seconds</div>
+  </div>
+
+  <div id="game" class="hidden"></div>
+  <div id="result" class="hidden">
+    <h2 style="text-align: center">✅ Game Completed</h2>
+    <div id="summary"></div>
+  </div>
+
+  <script>
+    const TOTAL_PAGES = 20;
+    const LINES_PER_PAGE = 20;
+    const LINE_LENGTH = 50;
+    const WORD_POOL = ["COLOR", "COOL", "COAT", "MOON", "DATA", "CODE", "MAP", "RED", "BLUE", "SUN", "DOOR", "SKY", "TOP", "TASK", "TREE", "FIRE", "JUMP", "YES", "GO", "WIN"];
+
+    let currentPage = 0;
+    let times = [];
+    let correctCounts = [];
+    let startTime;
+    let pageTimeout;
+
+    const promptEl = document.getElementById("prompt");
+    const countEl = document.getElementById("count");
+    const targetWordsEl = document.getElementById("targetWords");
+    const gameEl = document.getElementById("game");
+    const resultEl = document.getElementById("result");
+    const summaryEl = document.getElementById("summary");
+    const restEl = document.getElementById("rest");
+    const restCountEl = document.getElementById("restCount");
+
+    let targetWords = [];
+    let foundWords = new Set();
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function insertWordIntoLine(lineArr, word) {
+      const maxPos = LINE_LENGTH - word.length;
+      for (let i = 0; i < 50; i++) {
+        const pos = Math.floor(Math.random() * maxPos);
+        const canInsert = lineArr.slice(pos, pos + word.length).every(ch => !ch.dataset || !ch.dataset.word);
+        if (canInsert) {
+          for (let j = 0; j < word.length; j++) {
+            lineArr[pos + j].textContent = word[j];
+            lineArr[pos + j].dataset.word = word;
+          }
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function generatePage(words) {
+      gameEl.innerHTML = "";
+      const lines = [];
+      for (let i = 0; i < LINES_PER_PAGE; i++) {
+        const line = [];
+        for (let j = 0; j < LINE_LENGTH; j++) {
+          const span = document.createElement("span");
+          span.textContent = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[Math.floor(Math.random() * 36)];
+          span.className = "word-span";
+          line.push(span);
+        }
+        lines.push(line);
+      }
+
+      const usedLines = new Set();
+      words.forEach(word => {
+        let placed = false;
+        while (!placed) {
+          const lineIndex = Math.floor(Math.random() * LINES_PER_PAGE);
+          if (!usedLines.has(lineIndex)) {
+            placed = insertWordIntoLine(lines[lineIndex], word);
+            if (placed) usedLines.add(lineIndex);
+          }
+        }
+      });
+
+      lines.forEach(line => {
+        const div = document.createElement("div");
+        div.className = "line";
+        line.forEach(span => {
+          span.onclick = () => handleClick(span);
+          div.appendChild(span);
+        });
+        gameEl.appendChild(div);
+      });
+
+      clearTimeout(pageTimeout);
+      pageTimeout = setTimeout(() => {
+        const time = ((Date.now() - startTime) / 1000).toFixed(2);
+        times.push(time);
+        correctCounts.push(`${foundWords.size}/${targetWords.length}`);
+        currentPage++;
+        if (currentPage === TOTAL_PAGES) showResult();
+        else if (currentPage % 5 === 0) showRest();
+        else nextPage();
+      }, 60000);
+    }
+
+    function handleClick(span) {
+      if (span.classList.contains("correct")) {
+        const word = span.dataset.word;
+        if (word) {
+          foundWords.delete(word);
+          document.querySelectorAll(`span[data-word='${word}']`).forEach(s => s.classList.remove("correct"));
+        }
+      } else if (span.dataset.word && !foundWords.has(span.dataset.word)) {
+        foundWords.add(span.dataset.word);
+        document.querySelectorAll(`span[data-word='${span.dataset.word}']`).forEach(s => s.classList.add("correct"));
+      }
+      if (foundWords.size === targetWords.length) {
+        const time = ((Date.now() - startTime) / 1000).toFixed(2);
+        times.push(time);
+        correctCounts.push(`${foundWords.size}/${targetWords.length}`);
+        currentPage++;
+        clearTimeout(pageTimeout);
+        setTimeout(() => {
+          if (currentPage === TOTAL_PAGES) showResult();
+          else if (currentPage % 5 === 0) showRest();
+          else nextPage();
+        }, 800);
+      }
+    }
+
+    function showRest() {
+      promptEl.classList.add("hidden");
+      gameEl.classList.add("hidden");
+      restEl.classList.remove("hidden");
+      let restCount = 30;
+      restCountEl.textContent = restCount;
+      const restTimer = setInterval(() => {
+        restCount--;
+        restCountEl.textContent = restCount;
+        if (restCount <= 0) {
+          clearInterval(restTimer);
+          restEl.classList.add("hidden");
+          nextPage();
+        }
+      }, 1000);
+    }
+
+    function nextPage() {
+      promptEl.classList.remove("hidden");
+      gameEl.classList.add("hidden");
+      foundWords = new Set();
+      targetWords = shuffle([...new Set(WORD_POOL)]).slice(0, Math.floor(Math.random() * 3) + 1);
+      targetWordsEl.textContent = targetWords.join(", ");
+      let count = 5;
+      countEl.textContent = count;
+      const timer = setInterval(() => {
+        count--;
+        countEl.textContent = count;
+        if (count <= 0) {
+          clearInterval(timer);
+          promptEl.classList.add("hidden");
+          gameEl.classList.remove("hidden");
+          generatePage(targetWords);
+          startTime = Date.now();
+        }
+      }, 1000);
+    }
+
+    function showResult() {
+      gameEl.classList.add("hidden");
+      resultEl.classList.remove("hidden");
+      summaryEl.innerHTML = '<h3>Summary</h3>' + times.map((t, i) => `Page ${i + 1}: ⏱ ${t}s – ✅ ${correctCounts[i]}`).join("<br>");
+    }
+
+    nextPage();
+  </script>
+</body>
+</html>
