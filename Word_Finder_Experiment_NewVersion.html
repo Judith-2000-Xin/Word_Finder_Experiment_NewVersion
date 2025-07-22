@@ -3,54 +3,75 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Touch Word Finder</title>
+  <title>Word Finder Responsive</title>
   <style>
-    body {
-      font-family: "Times New Roman", serif;
-      font-size: 12px;
-      line-height: 1.5;
-      text-align: justify;
-      padding: 20px;
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
       background: #f4f4f4;
+      font-family: "Times New Roman", serif;
     }
-    .hidden { display: none; }
-    .word-box { font-size: 20px; margin: 10px; text-align: center; }
-    .line {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      font-family: monospace;
-      margin: 5px 0;
-      white-space: pre;
-      font-size: calc(1vw + 0.3em);
-    }
-    .word-span {
-      display: inline-block;
-      cursor: pointer;
-      padding: 2px 4px;
-      border-radius: 4px;
-      font-size: inherit;
-    }
-    .word-span:hover { background-color: #dfe6e9; }
-    .correct { background-color: #55efc4; }
-    .wrong { background-color: #fab1a0; }
-    .countdown {
-      font-size: 24px;
-      margin: 20px;
-      text-align: center;
-    }
-    .resting {
-      font-size: 35px;
-      text-align: center;
-      margin-top: 100px;
-    }
-    #game {
+
+    body {
       display: flex;
       flex-direction: column;
       align-items: center;
-      max-width: 100%;
-      padding: 10px;
+      padding: 2vh 0;
+    }
+
+    .hidden { display: none; }
+
+    .word-box {
+      font-size: 1.4em;
+      text-align: center;
+      margin: 1vh;
+    }
+
+    .countdown {
+      font-size: 1.2em;
+      text-align: center;
+      margin-bottom: 2vh;
+    }
+
+    .resting {
+      font-size: 1.3em;
+      text-align: center;
+      margin-top: 8vh;
+    }
+
+    #line-grid {
+      display: grid;
+      grid-template-columns: repeat(50, 1fr);
+      width: 100%;
+      max-width: 100vw;
+      row-gap: 0.4vh;
+      column-gap: 0;
+      justify-content: center;
+      padding: 0 1vw;
       box-sizing: border-box;
+      user-select: none;
+    }
+
+    .word-span {
+      font-size: clamp(14px, 2vw, 28px);
+      width: 100%;
+      text-align: center;
+      display: inline-block;
+      cursor: pointer;
+      line-height: 1.8;
+      letter-spacing: 1px;
+    }
+
+    .word-span:hover { background-color: #dfe6e9; }
+    .correct { background-color: #55efc4; }
+    .wrong { background-color: #fab1a0; }
+
+    #topTargetBox {
+      font-size: 1.6em;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 1vh;
     }
   </style>
 </head>
@@ -65,7 +86,12 @@
     <div class="resting">Take a 30-second break...<br>Next page starting in <span id="restCount">30</span> seconds</div>
   </div>
 
-  <div id="game" class="hidden"></div>
+  <div id="topTargetBox" class="hidden"></div>
+
+  <div id="game" class="hidden">
+    <div id="line-grid"></div>
+  </div>
+
   <div id="result" class="hidden">
     <h2 style="text-align: center">✅ Game Completed</h2>
     <div id="summary"></div>
@@ -75,7 +101,8 @@
     const TOTAL_PAGES = 20;
     const LINES_PER_PAGE = 20;
     const LINE_LENGTH = 50;
-    const WORD_POOL = ["COLOR", "YELLOW" , "PURPLE" , "COOL", "COAT", "MOON", "GREEN" , "ORANGE" , "DATA", "CODE", "MAP", "RED", "BLUE", "SUN", "DOOR", "SKY", "TOP", "TASK", "TREE", "FIRE", "JUMP", "YES", "GO", "WIN"];
+    const PAGE_DURATION = 60;
+    const WORD_POOL = ["COLOR", "COOL", "COAT", "MOON", "DATA", "CODE", "MAP", "RED", "BLUE", "SUN", "DOOR", "SKY", "TOP", "TASK", "TREE", "FIRE", "JUMP", "YES", "GO", "WIN"];
 
     let currentPage = 0;
     let times = [];
@@ -87,10 +114,12 @@
     const countEl = document.getElementById("count");
     const targetWordsEl = document.getElementById("targetWords");
     const gameEl = document.getElementById("game");
+    const gridEl = document.getElementById("line-grid");
     const resultEl = document.getElementById("result");
     const summaryEl = document.getElementById("summary");
     const restEl = document.getElementById("rest");
     const restCountEl = document.getElementById("restCount");
+    const topTargetBox = document.getElementById("topTargetBox");
 
     let targetWords = [];
     let foundWords = new Set();
@@ -107,7 +136,7 @@
       const maxPos = LINE_LENGTH - word.length;
       for (let i = 0; i < 50; i++) {
         const pos = Math.floor(Math.random() * maxPos);
-        const canInsert = lineArr.slice(pos, pos + word.length).every(ch => !ch.dataset || !ch.dataset.word);
+        const canInsert = lineArr.slice(pos, pos + word.length).every(ch => !ch.dataset.word);
         if (canInsert) {
           for (let j = 0; j < word.length; j++) {
             lineArr[pos + j].textContent = word[j];
@@ -120,7 +149,10 @@
     }
 
     function generatePage(words) {
-      gameEl.innerHTML = "";
+      gridEl.innerHTML = "";
+      topTargetBox.textContent = "🔍 Find: " + words.join(", ");
+      topTargetBox.classList.remove("hidden");
+
       const lines = [];
       for (let i = 0; i < LINES_PER_PAGE; i++) {
         const line = [];
@@ -146,13 +178,10 @@
       });
 
       lines.forEach(line => {
-        const div = document.createElement("div");
-        div.className = "line";
         line.forEach(span => {
           span.onclick = () => handleClick(span);
-          div.appendChild(span);
+          gridEl.appendChild(span);
         });
-        gameEl.appendChild(div);
       });
 
       clearTimeout(pageTimeout);
@@ -164,20 +193,21 @@
         if (currentPage === TOTAL_PAGES) showResult();
         else if (currentPage % 5 === 0) showRest();
         else nextPage();
-      }, 60000);
+      }, PAGE_DURATION * 1000);
     }
 
     function handleClick(span) {
+      const word = span.dataset.word;
       if (span.classList.contains("correct")) {
-        const word = span.dataset.word;
         if (word) {
           foundWords.delete(word);
-          document.querySelectorAll(`span[data-word='${word}']`).forEach(s => s.classList.remove("correct"));
+          document.querySelectorAll(`[data-word='${word}']`).forEach(s => s.classList.remove("correct"));
         }
-      } else if (span.dataset.word && !foundWords.has(span.dataset.word)) {
-        foundWords.add(span.dataset.word);
-        document.querySelectorAll(`span[data-word='${span.dataset.word}']`).forEach(s => s.classList.add("correct"));
+      } else if (word && !foundWords.has(word)) {
+        foundWords.add(word);
+        document.querySelectorAll(`[data-word='${word}']`).forEach(s => s.classList.add("correct"));
       }
+
       if (foundWords.size === targetWords.length) {
         const time = ((Date.now() - startTime) / 1000).toFixed(2);
         times.push(time);
@@ -196,6 +226,7 @@
       promptEl.classList.add("hidden");
       gameEl.classList.add("hidden");
       restEl.classList.remove("hidden");
+      topTargetBox.classList.add("hidden");
       let restCount = 30;
       restCountEl.textContent = restCount;
       const restTimer = setInterval(() => {
@@ -210,6 +241,7 @@
     }
 
     function nextPage() {
+      topTargetBox.classList.add("hidden");
       promptEl.classList.remove("hidden");
       gameEl.classList.add("hidden");
       foundWords = new Set();
@@ -224,8 +256,8 @@
           clearInterval(timer);
           promptEl.classList.add("hidden");
           gameEl.classList.remove("hidden");
+          startTime = Date.now(); // 計時從遊戲開始算起
           generatePage(targetWords);
-          startTime = Date.now();
         }
       }, 1000);
     }
@@ -233,7 +265,61 @@
     function showResult() {
       gameEl.classList.add("hidden");
       resultEl.classList.remove("hidden");
-      summaryEl.innerHTML = '<h3>Summary</h3>' + times.map((t, i) => `Page ${i + 1}: ⏱ ${t}s – ✅ ${correctCounts[i]}`).join("<br>");
+      topTargetBox.classList.add("hidden");
+
+      summaryEl.innerHTML = '<h3>Summary</h3>' + times.map((t, i) => {
+        const [correct, total] = correctCounts[i].split("/").map(Number);
+        const accuracy = ((correct / total) * 100).toFixed(1);
+        return `Page ${i + 1}: ⏱ ${t}s – ✅ ${correct}/${total} (${accuracy}%)`;
+      }).join("<br>");
+
+      const showTableBtn = document.createElement("button");
+      showTableBtn.textContent = "📊 顯示每頁搜尋時間與正確數（表格）";
+      showTableBtn.style.marginTop = "20px";
+      showTableBtn.style.padding = "10px 20px";
+      showTableBtn.style.fontSize = "1em";
+      showTableBtn.onclick = () => {
+        if (document.getElementById("resultTable")) return;
+
+        const table = document.createElement("table");
+        table.id = "resultTable";
+        table.style.marginTop = "20px";
+        table.style.borderCollapse = "collapse";
+        table.style.width = "80%";
+        table.style.maxWidth = "800px";
+        table.style.textAlign = "center";
+        table.style.fontSize = "1.1em";
+        table.style.border = "1px solid #333";
+
+        const headerRow = document.createElement("tr");
+        ["頁數", "搜尋時間（秒）", "找到單字數", "總目標數", "正確率 (%)"].forEach(text => {
+          const th = document.createElement("th");
+          th.textContent = text;
+          th.style.border = "1px solid #333";
+          th.style.padding = "8px";
+          th.style.background = "#dfe6e9";
+          headerRow.appendChild(th);
+        });
+        table.appendChild(headerRow);
+
+        times.forEach((t, i) => {
+          const [correct, total] = correctCounts[i].split("/").map(Number);
+          const accuracy = ((correct / total) * 100).toFixed(1);
+          const row = document.createElement("tr");
+          [i + 1, t, correct, total, accuracy].forEach(val => {
+            const td = document.createElement("td");
+            td.textContent = val;
+            td.style.border = "1px solid #333";
+            td.style.padding = "6px";
+            row.appendChild(td);
+          });
+          table.appendChild(row);
+        });
+
+        summaryEl.appendChild(table);
+      };
+
+      summaryEl.appendChild(showTableBtn);
     }
 
     nextPage();
