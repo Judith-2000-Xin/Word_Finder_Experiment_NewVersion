@@ -274,52 +274,53 @@
       }).join("<br>");
 
       const showTableBtn = document.createElement("button");
-      showTableBtn.textContent = "📊 顯示每頁搜尋時間與正確數（表格）";
-      showTableBtn.style.marginTop = "20px";
-      showTableBtn.style.padding = "10px 20px";
-      showTableBtn.style.fontSize = "1em";
-      showTableBtn.onclick = () => {
-        if (document.getElementById("resultTable")) return;
+showTableBtn.textContent = "📊 顯示每頁搜尋時間與正確數（表格）";
+showTableBtn.style.marginTop = "20px";
+showTableBtn.style.padding = "10px 20px";
+showTableBtn.style.fontSize = "1em";
+showTableBtn.onclick = () => {
+  if (document.getElementById("resultTable")) return;
 
-        const table = document.createElement("table");
-        table.id = "resultTable";
-        table.style.marginTop = "20px";
-        table.style.borderCollapse = "collapse";
-        table.style.width = "80%";
-        table.style.maxWidth = "800px";
-        table.style.textAlign = "center";
-        table.style.fontSize = "1.1em";
-        table.style.border = "1px solid #333";
+  const table = document.createElement("table");
+  table.id = "resultTable";
+  table.style.marginTop = "20px";
+  table.style.borderCollapse = "collapse";
+  table.style.width = "80%";
+  table.style.maxWidth = "800px";
+  table.style.textAlign = "center";
+  table.style.fontSize = "1.1em";
+  table.style.border = "1px solid #333";
 
-        const headerRow = document.createElement("tr");
-        ["頁數", "搜尋時間（秒）", "找到單字數", "總目標數", "正確率 (%)"].forEach(text => {
-          const th = document.createElement("th");
-          th.textContent = text;
-          th.style.border = "1px solid #333";
-          th.style.padding = "8px";
-          th.style.background = "#dfe6e9";
-          headerRow.appendChild(th);
-        });
-        table.appendChild(headerRow);
+  const headerRow = document.createElement("tr");
+  ["頁數", "搜尋時間（秒）", "找到單字數", "總目標數", "正確率 (%)", "每題平均作答時間（秒）"].forEach(text => {
+    const th = document.createElement("th");
+    th.textContent = text;
+    th.style.border = "1px solid #333";
+    th.style.padding = "8px";
+    th.style.background = "#dfe6e9";
+    headerRow.appendChild(th);
+  });
+  table.appendChild(headerRow);
 
-        times.forEach((t, i) => {
-          const [correct, total] = correctCounts[i].split("/").map(Number);
-          const accuracy = ((correct / total) * 100).toFixed(1);
-          const row = document.createElement("tr");
-          [i + 1, t, correct, total, accuracy].forEach(val => {
-            const td = document.createElement("td");
-            td.textContent = val;
-            td.style.border = "1px solid #333";
-            td.style.padding = "6px";
-            row.appendChild(td);
-          });
-          table.appendChild(row);
-        });
+  times.forEach((t, i) => {
+    const [correct, total] = correctCounts[i].split("/").map(Number);
+    const accuracy = ((correct / total) * 100).toFixed(1);
+    const avg = correct > 0 ? (t / correct).toFixed(2) : "—";
+    const row = document.createElement("tr");
+    [i + 1, t, correct, total, accuracy, avg].forEach(val => {
+      const td = document.createElement("td");
+      td.textContent = val;
+      td.style.border = "1px solid #333";
+      td.style.padding = "6px";
+      row.appendChild(td);
+    });
+    table.appendChild(row);
+  });
 
-        summaryEl.appendChild(table);
-      };
+  summaryEl.appendChild(table);
+};
+summaryEl.appendChild(showTableBtn);
 
-      summaryEl.appendChild(showTableBtn);
     }
 
     nextPage();
