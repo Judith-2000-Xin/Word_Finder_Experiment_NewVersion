@@ -12,34 +12,29 @@
       background: #f4f4f4;
       font-family: "Times New Roman", serif;
     }
-
     body {
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 2vh 0;
     }
-
     .hidden { display: none; }
-
     .word-box {
       font-size: 1.4em;
       text-align: center;
-      margin: 1vh;
+      margin: 2vh;
+      font-weight: bold;
     }
-
     .countdown {
-      font-size: 1.2em;
+      font-size: 0.8em;
       text-align: center;
       margin-bottom: 2vh;
     }
-
     .resting {
-      font-size: 1.3em;
+      font-size: 1.6em;
       text-align: center;
       margin-top: 8vh;
     }
-
     #line-grid {
       display: grid;
       grid-template-columns: repeat(50, 1fr);
@@ -52,7 +47,6 @@
       box-sizing: border-box;
       user-select: none;
     }
-
     .word-span {
       font-size: clamp(14px, 2vw, 28px);
       width: 100%;
@@ -62,11 +56,9 @@
       line-height: 1.8;
       letter-spacing: 1px;
     }
-
     .word-span:hover { background-color: #dfe6e9; }
     .correct { background-color: #55efc4; }
     .wrong { background-color: #fab1a0; }
-
     #topTargetBox {
       font-size: 1.6em;
       font-weight: bold;
@@ -75,6 +67,7 @@
     }
   </style>
 </head>
+
 <body>
   <div id="prompt">
     <h2 style="text-align: center">Find these words:</h2>
@@ -86,10 +79,12 @@
     <div class="resting">Take a 30-second break...<br>Next page starting in <span id="restCount">30</span> seconds</div>
   </div>
 
+  <!-- ✅ 顯示遊戲中目標單字 -->
   <div id="topTargetBox" class="hidden"></div>
 
   <div id="game" class="hidden">
     <div id="line-grid"></div>
+    <!-- ❌ timer bar 已移除 -->
   </div>
 
   <div id="result" class="hidden">
@@ -187,7 +182,7 @@
       clearTimeout(pageTimeout);
       pageTimeout = setTimeout(() => {
         const time = ((Date.now() - startTime) / 1000).toFixed(2);
-        times.push(parseFloat(time));
+        times.push(time);
         correctCounts.push(`${foundWords.size}/${targetWords.length}`);
         currentPage++;
         if (currentPage === TOTAL_PAGES) showResult();
@@ -210,7 +205,7 @@
 
       if (foundWords.size === targetWords.length) {
         const time = ((Date.now() - startTime) / 1000).toFixed(2);
-        times.push(parseFloat(time));
+        times.push(time);
         correctCounts.push(`${foundWords.size}/${targetWords.length}`);
         currentPage++;
         clearTimeout(pageTimeout);
@@ -256,8 +251,8 @@
           clearInterval(timer);
           promptEl.classList.add("hidden");
           gameEl.classList.remove("hidden");
-          startTime = Date.now();
           generatePage(targetWords);
+          startTime = Date.now();
         }
       }, 1000);
     }
@@ -270,8 +265,8 @@
       summaryEl.innerHTML = '<h3>Summary</h3>' + times.map((t, i) => {
         const [correct, total] = correctCounts[i].split("/").map(Number);
         const accuracy = ((correct / total) * 100).toFixed(1);
-        const avgTimePerCorrect = correct > 0 ? (t / correct).toFixed(2) : "—";
-        return `Page ${i + 1}: ⏱ ${t}s – ✅ ${correct}/${total} (${accuracy}%) – ⏳ 每題平均 ${avgTimePerCorrect}s`;
+        const speed = (t / total).toFixed(1);
+        return `Page ${i + 1}: ⏱ ${t}s – ✅ ${correct}/${total} (${accuracy}%) – 🔍 搜尋速度：${speed} 秒/字`;
       }).join("<br>");
 
       const showTableBtn = document.createElement("button");
@@ -279,6 +274,7 @@
       showTableBtn.style.marginTop = "20px";
       showTableBtn.style.padding = "10px 20px";
       showTableBtn.style.fontSize = "1em";
+
       showTableBtn.onclick = () => {
         if (document.getElementById("resultTable")) return;
 
@@ -286,14 +282,14 @@
         table.id = "resultTable";
         table.style.marginTop = "20px";
         table.style.borderCollapse = "collapse";
-        table.style.width = "80%";
-        table.style.maxWidth = "800px";
+        table.style.width = "90%";
+        table.style.maxWidth = "900px";
         table.style.textAlign = "center";
         table.style.fontSize = "1.1em";
         table.style.border = "1px solid #333";
 
         const headerRow = document.createElement("tr");
-        ["頁數", "搜尋時間（秒）", "找到單字數", "總目標數", "正確率 (%)", "每題平均作答時間（秒）"].forEach(text => {
+        ["頁數", "搜尋時間（秒）", "找到單字數", "總目標數", "正確率 (%)", "搜尋速度（秒/字）"].forEach(text => {
           const th = document.createElement("th");
           th.textContent = text;
           th.style.border = "1px solid #333";
@@ -306,9 +302,9 @@
         times.forEach((t, i) => {
           const [correct, total] = correctCounts[i].split("/").map(Number);
           const accuracy = ((correct / total) * 100).toFixed(1);
-          const avg = correct > 0 ? (t / correct).toFixed(2) : "—";
+          const speed = (t / total).toFixed(1);
           const row = document.createElement("tr");
-          [i + 1, t, correct, total, accuracy, avg].forEach(val => {
+          [i + 1, t, correct, total, accuracy, speed].forEach(val => {
             const td = document.createElement("td");
             td.textContent = val;
             td.style.border = "1px solid #333";
