@@ -1,165 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Letter Finder Game</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     html, body {
       margin: 0;
       padding: 0;
-      background: #f4f4f4;
       font-family: "Times New Roman", serif;
+      background: #f4f4f4;
       overflow: hidden;
     }
-    body {
+    .container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
-    }
-    .word-box {
-      display: grid;
-      grid-template-columns: repeat(45, 1fr);
-      gap: 0.1em;
-      max-width: 90vw;
-      font-size: 2.5vw;
-      line-height: 1.4;
+      justify-content: center;
+      min-height: 100vh;
       text-align: center;
-      margin-top: 1vh;
-      word-break: break-word;
     }
     .letter {
+      font-size: 1.8em;
+      margin-top: 1vh;
+    }
+    .grid {
+      display: grid;
+      grid-template-rows: repeat(25, 1fr);
+      row-gap: 0.5em;
+      line-height: 1.5;
+      font-size: calc(1.4vw + 0.4em);
+      padding: 1vh;
+      max-width: 90vw;
+      overflow: hidden;
+      white-space: pre;
+      word-break: break-word;
+    }
+    .grid span {
+      letter-spacing: 0.5ch;
       cursor: pointer;
     }
-    .marked {
+    .selected {
       background-color: yellow;
     }
-    .header {
-      font-size: 2em;
-      margin: 1vh auto;
-    }
-    #overlay {
+    .overlay {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-color: rgba(0,0,0,0.8);
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
       color: white;
       font-size: 2em;
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 10;
+      z-index: 9999;
     }
-    #result, #exportBtn {
-      display: none;
+    #resultTable {
       margin-top: 2vh;
+      border-collapse: collapse;
+      width: 80vw;
+    }
+    #resultTable td, #resultTable th {
+      border: 1px solid black;
+      padding: 0.5em;
+    }
+    #exportBtn {
+      margin-top: 1em;
+      padding: 0.5em 1em;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    🔍 Find the letter: <span id="targetLetter"></span>
+  <div class="container">
+    <div class="letter" id="targetLetter">🔍 Find the letter: </div>
+    <div class="grid" id="textGrid"></div>
+    <button id="exportBtn" class="hidden">Export CSV</button>
+    <div id="result"></div>
   </div>
-  <div id="timer"></div>
-  <div class="word-box" id="wordBox"></div>
-  <div id="overlay"></div>
-  <div id="result"></div>
-  <button id="exportBtn" onclick="exportCSV()">Export CSV</button>
+  <div class="overlay" id="overlay">Next page in 3 seconds...</div>
 
-  <script src="articleData.js"></script>
   <script>
-    const letters = Object.keys(articleData);
-    let pages = [...letters];
-    let pageIndex = -1;
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    const totalPages = 26;
+    const rows = 25;
+    const cols = 45;
+    const minTarget = 8;
+    const maxTarget = 16;
+    const totalTargets = 400;
+    const pages = [];
+    const results = [];
+
+    function getRandomChar(exclude) {
+      let pool = "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789";
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function generatePages() {
+      let distribution = {};
+      while (Object.keys(distribution).length < 26) {
+        let letter = letters[Object.keys(distribution).length];
+        distribution[letter] = Math.floor(Math.random() * (maxTarget - minTarget + 1)) + minTarget;
+      }
+      let assigned = Object.values(distribution).reduce((a, b) => a + b, 0);
+      let diff = totalTargets - assigned;
+      while (diff !== 0) {
+        for (let l of letters) {
+          if (diff === 0) break;
+          if (diff > 0 && distribution[l] < maxTarget) {
+            distribution[l]++;
+            diff--;
+          } else if (diff < 0 && distribution[l] > minTarget) {
+            distribution[l]--;
+            diff++;
+          }
+        }
+      }
+      for (let letter of letters) {
+        let count = distribution[letter];
+        let content = [];
+        let allChars = [];
+        for (let i = 0; i < rows * cols - count; i++) {
+          allChars.push(getRandomChar(letter));
+        }
+        for (let i = 0; i < count; i++) {
+          allChars.splice(Math.floor(Math.random() * allChars.length), 0, letter);
+        }
+        for (let i = 0; i < rows; i++) {
+          content.push(allChars.slice(i * cols, (i + 1) * cols));
+        }
+        pages.push({ letter, content });
+      }
+    }
+
+    function shufflePages() {
+      for (let i = pages.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pages[i], pages[j]] = [pages[j], pages[i]];
+      }
+    }
+
+    let currentPage = 0;
+    let correct = 0;
     let startTime;
-    let timerInterval;
-    let stats = [];
 
-    const overlay = document.getElementById("overlay");
-    const wordBox = document.getElementById("wordBox");
-    const result = document.getElementById("result");
-    const exportBtn = document.getElementById("exportBtn");
-    const targetLetterSpan = document.getElementById("targetLetter");
-    const timer = document.getElementById("timer");
-
-    function startNextPage() {
-      pageIndex++;
-      if (pageIndex >= pages.length) return endGame();
-
-      overlay.style.display = "flex";
-      overlay.innerText = "Next page in 3 seconds...";
-      setTimeout(() => {
-        overlay.style.display = "none";
-        loadPage(pages[pageIndex]);
-      }, 3000);
-    }
-
-    function loadPage(letter) {
-      wordBox.innerHTML = "";
-      targetLetterSpan.textContent = letter;
-      const lines = articleData[letter];
-
-      lines.forEach(line => {
-        for (let ch of line) {
+    function renderPage() {
+      const { letter, content } = pages[currentPage];
+      document.getElementById("targetLetter").innerText = `🔍 Find the letter: ${letter}`;
+      const grid = document.getElementById("textGrid");
+      grid.innerHTML = "";
+      content.forEach(line => {
+        const row = document.createElement("div");
+        line.forEach(char => {
           const span = document.createElement("span");
-          span.textContent = ch;
-          span.classList.add("letter");
-          span.onclick = () => span.classList.toggle("marked");
-          wordBox.appendChild(span);
-        }
+          span.innerText = char;
+          span.addEventListener("click", () => {
+            span.classList.toggle("selected");
+          });
+          row.appendChild(span);
+        });
+        grid.appendChild(row);
       });
-
       startTime = Date.now();
-      let timeLeft = 90;
-      timer.innerText = `Time: ${timeLeft}s`;
-
-      clearInterval(timerInterval);
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        timer.innerText = `Time: ${timeLeft}s`;
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          finishPage(letter);
-        }
-      }, 1000);
     }
 
-    function finishPage(letter) {
-      const marked = [...document.querySelectorAll(".marked")];
-      const correct = marked.filter(el => el.textContent === letter).length;
-      const usedTime = Math.round((Date.now() - startTime) / 1000);
-      stats.push({ letter, correct, usedTime });
-      startNextPage();
+    function nextPage() {
+      const spans = document.querySelectorAll(".grid span");
+      const found = Array.from(spans).filter(s => s.classList.contains("selected")).filter(s => s.innerText === pages[currentPage].letter).length;
+      const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+      results.push({ page: currentPage + 1, letter: pages[currentPage].letter, correct: found, time: timeSpent });
+
+      currentPage++;
+      if (currentPage >= totalPages) {
+        showResults();
+      } else {
+        document.getElementById("overlay").style.display = "flex";
+        setTimeout(() => {
+          document.getElementById("overlay").style.display = "none";
+          renderPage();
+        }, 3000);
+      }
     }
 
-    function endGame() {
-      wordBox.innerHTML = "";
-      targetLetterSpan.textContent = "";
-      overlay.style.display = "none";
-      timer.style.display = "none";
-
-      result.style.display = "block";
-      result.innerHTML = `<h3>Result</h3><table border="1"><tr><th>Letter</th><th>Correct</th><th>Time (s)</th></tr>
-        ${stats.map(s => `<tr><td>${s.letter}</td><td>${s.correct}</td><td>${s.usedTime}</td></tr>`).join("")}</table>`;
-      exportBtn.style.display = "inline-block";
-    }
-
-    function exportCSV() {
-      let csv = "Letter,Correct,Time\n";
-      stats.forEach(s => {
-        csv += `${s.letter},${s.correct},${s.usedTime}\n`;
+    function showResults() {
+      const result = document.getElementById("result");
+      const table = document.createElement("table");
+      table.id = "resultTable";
+      const header = table.insertRow();
+      ["Page", "Letter", "Correct Clicks", "Time (s)"].forEach(h => header.insertCell().innerText = h);
+      results.forEach(r => {
+        const row = table.insertRow();
+        row.insertCell().innerText = r.page;
+        row.insertCell().innerText = r.letter;
+        row.insertCell().innerText = r.correct;
+        row.insertCell().innerText = r.time;
       });
+      result.appendChild(table);
+      document.getElementById("exportBtn").classList.remove("hidden");
+    }
+
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      let csv = "Page,Letter,Correct,Time\n" + results.map(r => `${r.page},${r.letter},${r.correct},${r.time}`).join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = "results.csv";
       a.click();
-    }
+    });
 
-    // 初始化
-    pages = pages.sort(() => Math.random() - 0.5);
-    startNextPage();
+    document.addEventListener("DOMContentLoaded", () => {
+      generatePages();
+      shufflePages();
+      document.getElementById("overlay").style.display = "none";
+      renderPage();
+      setInterval(() => {
+        if (currentPage < totalPages && document.getElementById("overlay").style.display === "none") {
+          nextPage();
+        }
+      }, 90000); // 90秒換頁
+    });
   </script>
 </body>
 </html>
