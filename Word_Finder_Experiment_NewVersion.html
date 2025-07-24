@@ -1,13 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Letter Finder Game</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
     html, body {
       margin: 0;
       padding: 0;
@@ -15,215 +12,160 @@
       background: #f4f4f4;
       overflow: hidden;
     }
-    .container {
+    body {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      text-align: center;
+      padding: 2vh 0;
+    }
+    .letter-grid {
+      display: grid;
+      grid-template-columns: repeat(45, 1fr);
+      grid-auto-rows: 1.4em;
+      gap: 0.2em;
+      max-width: 95vw;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0 5px;
+      font-size: clamp(14px, 1.2vw, 22px);
+      line-height: 1.6;
     }
     .letter {
-      font-size: 1.8em;
-      margin-top: 1vh;
-    }
-    .grid {
-      display: grid;
-      grid-template-rows: repeat(25, 1fr);
-      row-gap: 0.5em;
-      line-height: 1.5;
-      font-size: calc(1.4vw + 0.4em);
-      padding: 1vh;
-      max-width: 90vw;
-      overflow: hidden;
-      white-space: pre;
-      word-break: break-word;
-    }
-    .grid span {
-      letter-spacing: 0.5ch;
+      user-select: none;
       cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-    .selected {
+    .highlight {
       background-color: yellow;
     }
-    .overlay {
+    .wrong {
+      background-color: lightcoral;
+    }
+    .hidden { display: none; }
+    .resting-screen {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.8);
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
       color: white;
       font-size: 2em;
       display: flex;
-      align-items: center;
       justify-content: center;
-      z-index: 9999;
+      align-items: center;
+      z-index: 999;
     }
-    #resultTable {
-      margin-top: 2vh;
+    .summary-table {
+      margin-top: 2rem;
       border-collapse: collapse;
-      width: 80vw;
     }
-    #resultTable td, #resultTable th {
-      border: 1px solid black;
-      padding: 0.5em;
+    .summary-table th, .summary-table td {
+      border: 1px solid #000;
+      padding: 5px 10px;
     }
-    #exportBtn {
-      margin-top: 1em;
-      padding: 0.5em 1em;
-    }
+    #csvBtn { margin-top: 10px; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="letter" id="targetLetter">🔍 Find the letter: </div>
-    <div class="grid" id="textGrid"></div>
-    <button id="exportBtn" class="hidden">Export CSV</button>
-    <div id="result"></div>
+  <h2>🔍 Find the letter: <span id="targetLetter"></span></h2>
+  <div id="grid" class="letter-grid"></div>
+  <div id="restingScreen" class="resting-screen hidden">Next page in <span id="restTime">3</span> seconds...</div>
+  <div id="summary" class="hidden">
+    <table class="summary-table" id="summaryTable"></table>
+    <button id="csvBtn" onclick="exportCSV()">Export CSV</button>
   </div>
-  <div class="overlay" id="overlay">Next page in 3 seconds...</div>
 
-  <script>
-    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-    const totalPages = 26;
-    const rows = 25;
-    const cols = 45;
-    const minTarget = 8;
-    const maxTarget = 16;
-    const totalTargets = 400;
-    const pages = [];
-    const results = [];
+<script>
+const letterContent = {
+  A: `...`, // 此處應貼入每篇從 .txt 中載入的 25 行文字 (A~Z)
+  B: `...`,
+  ...
+  Z: `...`
+};
 
-    function getRandomChar(exclude) {
-      let pool = "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789";
-      return pool[Math.floor(Math.random() * pool.length)];
-    }
+let pages = Object.entries(letterContent).map(([letter, content]) => ({ letter, content }));
+pages = pages.sort(() => Math.random() - 0.5); // 隨機順序
+let currentPage = 0;
+let data = [];
+let correctCount = 0;
+let startTime = 0;
 
-    function generatePages() {
-      let distribution = {};
-      while (Object.keys(distribution).length < 26) {
-        let letter = letters[Object.keys(distribution).length];
-        distribution[letter] = Math.floor(Math.random() * (maxTarget - minTarget + 1)) + minTarget;
-      }
-      let assigned = Object.values(distribution).reduce((a, b) => a + b, 0);
-      let diff = totalTargets - assigned;
-      while (diff !== 0) {
-        for (let l of letters) {
-          if (diff === 0) break;
-          if (diff > 0 && distribution[l] < maxTarget) {
-            distribution[l]++;
-            diff--;
-          } else if (diff < 0 && distribution[l] > minTarget) {
-            distribution[l]--;
-            diff++;
-          }
-        }
-      }
-      for (let letter of letters) {
-        let count = distribution[letter];
-        let content = [];
-        let allChars = [];
-        for (let i = 0; i < rows * cols - count; i++) {
-          allChars.push(getRandomChar(letter));
-        }
-        for (let i = 0; i < count; i++) {
-          allChars.splice(Math.floor(Math.random() * allChars.length), 0, letter);
-        }
-        for (let i = 0; i < rows; i++) {
-          content.push(allChars.slice(i * cols, (i + 1) * cols));
-        }
-        pages.push({ letter, content });
-      }
-    }
-
-    function shufflePages() {
-      for (let i = pages.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pages[i], pages[j]] = [pages[j], pages[i]];
-      }
-    }
-
-    let currentPage = 0;
-    let correct = 0;
-    let startTime;
-
-    function renderPage() {
-      const { letter, content } = pages[currentPage];
-      document.getElementById("targetLetter").innerText = `🔍 Find the letter: ${letter}`;
-      const grid = document.getElementById("textGrid");
-      grid.innerHTML = "";
-      content.forEach(line => {
-        const row = document.createElement("div");
-        line.forEach(char => {
-          const span = document.createElement("span");
-          span.innerText = char;
-          span.addEventListener("click", () => {
-            span.classList.toggle("selected");
-          });
-          row.appendChild(span);
-        });
-        grid.appendChild(row);
-      });
-      startTime = Date.now();
-    }
-
-    function nextPage() {
-      const spans = document.querySelectorAll(".grid span");
-      const found = Array.from(spans).filter(s => s.classList.contains("selected")).filter(s => s.innerText === pages[currentPage].letter).length;
-      const timeSpent = Math.floor((Date.now() - startTime) / 1000);
-      results.push({ page: currentPage + 1, letter: pages[currentPage].letter, correct: found, time: timeSpent });
-
-      currentPage++;
-      if (currentPage >= totalPages) {
-        showResults();
+function renderPage() {
+  const page = pages[currentPage];
+  document.getElementById('targetLetter').textContent = page.letter;
+  const gridDiv = document.getElementById('grid');
+  gridDiv.innerHTML = '';
+  const chars = page.content.replace(/\n/g, '').split('');
+  chars.forEach((ch, i) => {
+    const span = document.createElement('span');
+    span.textContent = ch;
+    span.className = 'letter';
+    span.onclick = () => {
+      if (span.classList.contains('highlight')) {
+        span.classList.remove('highlight');
+        if (ch === page.letter) correctCount--;
       } else {
-        document.getElementById("overlay").style.display = "flex";
-        setTimeout(() => {
-          document.getElementById("overlay").style.display = "none";
-          renderPage();
-        }, 3000);
+        span.classList.add(ch === page.letter ? 'highlight' : 'wrong');
+        if (ch === page.letter) correctCount++;
       }
-    }
+    };
+    gridDiv.appendChild(span);
+  });
+  startTime = Date.now();
+}
 
-    function showResults() {
-      const result = document.getElementById("result");
-      const table = document.createElement("table");
-      table.id = "resultTable";
-      const header = table.insertRow();
-      ["Page", "Letter", "Correct Clicks", "Time (s)"].forEach(h => header.insertCell().innerText = h);
-      results.forEach(r => {
-        const row = table.insertRow();
-        row.insertCell().innerText = r.page;
-        row.insertCell().innerText = r.letter;
-        row.insertCell().innerText = r.correct;
-        row.insertCell().innerText = r.time;
-      });
-      result.appendChild(table);
-      document.getElementById("exportBtn").classList.remove("hidden");
-    }
-
-    document.getElementById("exportBtn").addEventListener("click", () => {
-      let csv = "Page,Letter,Correct,Time\n" + results.map(r => `${r.page},${r.letter},${r.correct},${r.time}`).join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "results.csv";
-      a.click();
-    });
-
-    document.addEventListener("DOMContentLoaded", () => {
-      generatePages();
-      shufflePages();
-      document.getElementById("overlay").style.display = "none";
+function nextPage() {
+  const timeSpent = Math.round((Date.now() - startTime) / 1000);
+  data.push({page: currentPage+1, letter: pages[currentPage].letter, correct: correctCount, time: timeSpent});
+  currentPage++;
+  if (currentPage >= pages.length) return showSummary();
+  correctCount = 0;
+  document.getElementById('restingScreen').classList.remove('hidden');
+  let rest = 3;
+  document.getElementById('restTime').textContent = rest;
+  const interval = setInterval(() => {
+    rest--;
+    document.getElementById('restTime').textContent = rest;
+    if (rest === 0) {
+      clearInterval(interval);
+      document.getElementById('restingScreen').classList.add('hidden');
       renderPage();
-      setInterval(() => {
-        if (currentPage < totalPages && document.getElementById("overlay").style.display === "none") {
-          nextPage();
-        }
-      }, 90000); // 90秒換頁
-    });
-  </script>
+      setTimeout(nextPage, 90000);
+    }
+  }, 1000);
+}
+
+function showSummary() {
+  document.getElementById('grid').classList.add('hidden');
+  document.getElementById('targetLetter').textContent = '';
+  const table = document.getElementById('summaryTable');
+  table.innerHTML = '<tr><th>Page</th><th>Letter</th><th>Correct</th><th>Time (s)</th></tr>';
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${row.page}</td><td>${row.letter}</td><td>${row.correct}</td><td>${row.time}</td>`;
+    table.appendChild(tr);
+  });
+  document.getElementById('summary').classList.remove('hidden');
+}
+
+function exportCSV() {
+  let csv = 'Page,Letter,Correct,Time\n';
+  data.forEach(row => {
+    csv += `${row.page},${row.letter},${row.correct},${row.time}\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'letter_finder_results.csv';
+  link.click();
+}
+
+function init() {
+  renderPage();
+  setTimeout(nextPage, 90000);
+}
+
+init();
+</script>
 </body>
 </html>
