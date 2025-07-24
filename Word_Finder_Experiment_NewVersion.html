@@ -187,15 +187,19 @@ function showRestingScreen(callback) {
   restText.textContent = `Next page in ${rest} seconds...`;
   restDiv.classList.remove('hidden');
   clearInterval(restTimer);
-  restTimer = setInterval(() => {
+  
+  const countDown = () => {
     rest--;
-    restText.textContent = `Next page in ${rest} seconds...`;
-    if (rest <= 0) {
-      clearInterval(restTimer);
+    if (rest > 0) {
+      restText.textContent = `Next page in ${rest} seconds...`;
+      setTimeout(countDown, 1000);
+    } else {
       restDiv.classList.add('hidden');
       callback();
     }
-  }, 1000);
+  };
+  
+  setTimeout(countDown, 1000);
 }
 
 function showSummary() {
