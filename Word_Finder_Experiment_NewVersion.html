@@ -10,14 +10,14 @@
       padding: 0;
       font-family: "Times New Roman", serif;
       background: #f4f4f4;
-      overflow: hidden;
+      overflow-x: auto;
     }
     body {
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 1vh 1vw;
-      height: 100vh;
+      min-height: 100vh;
       box-sizing: border-box;
     }
     .letter-grid {
@@ -25,14 +25,15 @@
       grid-template-columns: repeat(45, 1fr);
       grid-auto-rows: minmax(1.8em, auto);
       gap: 0.25em;
-      width: 94vw;
-      height: 82vh;
-      max-width: 1500px;
-      font-size: clamp(16px, 1.6vw, 24px);
-      line-height: 1.6;
+      width: 90vw;
+      height: 75vh;
+      max-width: 1400px;
+      font-size: clamp(12px, 1.4vw, 20px);
+      line-height: 1.7;
       box-sizing: border-box;
       word-break: break-word;
       padding: 0.5em;
+      overflow: hidden;
     }
     .letter {
       user-select: none;
@@ -67,11 +68,15 @@
       margin-top: 2rem;
       border-collapse: collapse;
       text-align: center;
+      width: 90vw;
+      max-width: 1200px;
+      overflow-x: auto;
     }
     .summary-table th, .summary-table td {
       border: 1px solid #000;
       padding: 8px 12px;
       text-align: center;
+      white-space: nowrap;
     }
     #csvBtn {
       margin-top: 10px;
@@ -82,6 +87,11 @@
     }
     #header.hidden {
       display: none;
+    }
+    .table-container {
+      width: 90vw;
+      max-width: 1200px;
+      overflow-x: auto;
     }
   </style>
 </head>
@@ -103,7 +113,9 @@
   <div id="grid" class="letter-grid"></div>
   <div id="restingScreen" class="resting-screen hidden"><span id="restingText"></span></div>
   <div id="summary" class="hidden">
-    <table class="summary-table" id="summaryTable"></table>
+    <div class="table-container">
+      <table class="summary-table" id="summaryTable"></table>
+    </div>
     <button id="csvBtn">Export CSV</button>
   </div>
 
@@ -215,13 +227,13 @@ function renderPage() {
           wrongCount++;
         }
         
-        // 記錄點擊資料
+        // 記錄點擊資料（包含正確和錯誤的點擊時間）
         clickData.push({
           page: currentPage + 1,
-          letter: page.letter,
+          targetLetter: page.letter,
           clickedChar: ch,
           correct: isCorrect,
-          time: timeFromStart,
+          timeInSeconds: timeFromStart,
           position: i
         });
       }
@@ -246,8 +258,6 @@ function nextPage() {
   const chars = page.content.split('');
   const totalTargetLetters = chars.filter(ch => ch === page.letter).length;
   const accuracy = totalTargetLetters > 0 ? ((correctCount / totalTargetLetters) * 100).toFixed(1) : '0.0';
-  const totalClicks = correctCount + wrongCount;
-  const totalAccuracy = totalClicks > 0 ? ((correctCount / totalClicks) * 100).toFixed(1) : '0.0';
   
   data.push({
     page: currentPage + 1, 
@@ -256,7 +266,6 @@ function nextPage() {
     wrong: wrongCount,
     totalLetters: totalTargetLetters,
     accuracy: accuracy + '%',
-    totalAccuracy: totalAccuracy + '%',
     appearances: totalTargetLetters,
     time: timeSpent
   });
@@ -304,6 +313,8 @@ function showSummary() {
   document.getElementById('grid').classList.add('hidden');
   document.getElementById('header').classList.add('hidden');
   const table = document.getElementById('summaryTable');
+  
+  // 移除 Total Letters Accuracy 欄位
   table.innerHTML = `<tr>
     <th>Page</th>
     <th>Letter</th>
@@ -311,7 +322,6 @@ function showSummary() {
     <th>Wrong</th>
     <th>Total Letters</th>
     <th>Accuracy</th>
-    <th>Total Letters Accuracy</th>
     <th>How Many Times Each Letter Appears</th>
     <th>Time (s)</th>
   </tr>`;
@@ -325,7 +335,6 @@ function showSummary() {
       <td>${row.wrong}</td>
       <td>${row.totalLetters}</td>
       <td>${row.accuracy}</td>
-      <td>${row.totalAccuracy}</td>
       <td>${row.appearances}</td>
       <td>${row.time}</td>
     `;
@@ -337,17 +346,17 @@ function showSummary() {
 }
 
 function exportCSV() {
-  // 主要資料CSV
-  let csv = 'Page,Letter,Correct,Wrong,Total Letters,Accuracy,Total Letters Accuracy,How Many Times Each Letter Appears,Time\n';
+  // 主要資料CSV（移除 Total Letters Accuracy）
+  let csv = 'Page,Letter,Correct,Wrong,Total Letters,Accuracy,How Many Times Each Letter Appears,Time\n';
   data.forEach(row => {
-    csv += `${row.page},${row.letter},${row.correct},${row.wrong},${row.totalLetters},${row.accuracy},${row.totalAccuracy},${row.appearances},${row.time}\n`;
+    csv += `${row.page},${row.letter},${row.correct},${row.wrong},${row.totalLetters},${row.accuracy},${row.appearances},${row.time}\n`;
   });
   
-  // 點擊詳細資料CSV
+  // 點擊詳細資料CSV（包含所有點擊的時間記錄）
   csv += '\n\nDetailed Click Data:\n';
-  csv += 'Page,Target Letter,Clicked Character,Correct,Time (s),Position\n';
+  csv += 'Page,Target Letter,Clicked Character,Correct,Time (seconds),Position\n';
   clickData.forEach(click => {
-    csv += `${click.page},${click.letter},${click.clickedChar},${click.correct},${click.time},${click.position}\n`;
+    csv += `${click.page},${click.targetLetter},${click.clickedChar},${click.correct},${click.timeInSeconds},${click.position}\n`;
   });
   
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
