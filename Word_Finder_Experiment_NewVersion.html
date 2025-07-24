@@ -37,11 +37,11 @@
       align-items: center;
     }
     .highlight {
-      background-color: #3cb371; /* green */
+      background-color: #3cb371;
       color: white;
     }
     .wrong {
-      background-color: #dc143c; /* red */
+      background-color: #dc143c;
       color: white;
     }
     .hidden { display: none; }
@@ -101,7 +101,7 @@ function generateFixedDistribution() {
 }
 
 function generateContent(letter, count) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789';
   const total = 45 * 25;
   const positions = new Set();
   while (positions.size < count) positions.add(Math.floor(Math.random() * total));
@@ -155,8 +155,8 @@ function nextPage() {
   currentPage++;
   if (currentPage >= pages.length) return showSummary();
   correctCount = 0;
-  document.getElementById('restingScreen').classList.remove('hidden');
   let rest = 3;
+  document.getElementById('restingScreen').classList.remove('hidden');
   document.getElementById('restTime').textContent = rest;
   const interval = setInterval(() => {
     rest--;
