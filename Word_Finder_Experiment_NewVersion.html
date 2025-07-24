@@ -331,7 +331,7 @@ function showSummary() {
   document.getElementById('header').classList.add('hidden');
   const table = document.getElementById('summaryTable');
   
-  // 移除 Total Letters Accuracy 欄位
+  // 移除 How Many Times Each Letter Appears 欄位
   table.innerHTML = `<tr>
     <th>Page</th>
     <th>Letter</th>
@@ -339,7 +339,6 @@ function showSummary() {
     <th>Wrong</th>
     <th>Total Letters</th>
     <th>Accuracy</th>
-    <th>How Many Times Each Letter Appears</th>
     <th>Time (s)</th>
   </tr>`;
   
@@ -352,22 +351,50 @@ function showSummary() {
       <td>${row.wrong}</td>
       <td>${row.totalLetters}</td>
       <td>${row.accuracy}</td>
-      <td>${row.appearances}</td>
       <td>${row.time}</td>
     `;
     table.appendChild(tr);
   });
+  
+  // 計算總計資料
+  const totalLetters = data.reduce((sum, row) => sum + row.totalLetters, 0);
+  const totalCorrect = data.reduce((sum, row) => sum + row.correct, 0);
+  const totalWrong = data.reduce((sum, row) => sum + row.wrong, 0);
+  const overallAccuracy = totalLetters > 0 ? ((totalCorrect / totalLetters) * 100).toFixed(1) : '0.0';
+  
+  // 添加總計行
+  const totalRow = document.createElement('tr');
+  totalRow.style.fontWeight = 'bold';
+  totalRow.style.backgroundColor = '#f0f0f0';
+  totalRow.innerHTML = `
+    <td>Total</td>
+    <td>26 Pages</td>
+    <td>${totalCorrect}</td>
+    <td>${totalWrong}</td>
+    <td>${totalLetters}</td>
+    <td>${overallAccuracy}%</td>
+    <td>2340s</td>
+  `;
+  table.appendChild(totalRow);
   
   document.getElementById('summary').classList.remove('hidden');
   document.getElementById('summary').classList.add('show');
 }
 
 function exportCSV() {
-  // 主要資料CSV（移除 Total Letters Accuracy）
-  let csv = 'Page,Letter,Correct,Wrong,Total Letters,Accuracy,How Many Times Each Letter Appears,Time\n';
+  // 主要資料CSV（移除 How Many Times Each Letter Appears）
+  let csv = 'Page,Letter,Correct,Wrong,Total Letters,Accuracy,Time\n';
   data.forEach(row => {
-    csv += `${row.page},${row.letter},${row.correct},${row.wrong},${row.totalLetters},${row.accuracy},${row.appearances},${row.time}\n`;
+    csv += `${row.page},${row.letter},${row.correct},${row.wrong},${row.totalLetters},${row.accuracy},${row.time}\n`;
   });
+  
+  // 計算並添加總計行
+  const totalLetters = data.reduce((sum, row) => sum + row.totalLetters, 0);
+  const totalCorrect = data.reduce((sum, row) => sum + row.correct, 0);
+  const totalWrong = data.reduce((sum, row) => sum + row.wrong, 0);
+  const overallAccuracy = totalLetters > 0 ? ((totalCorrect / totalLetters) * 100).toFixed(1) : '0.0';
+  
+  csv += `Total,26 Pages,${totalCorrect},${totalWrong},${totalLetters},${overallAccuracy}%,2340\n`;
   
   // 點擊詳細資料CSV（包含所有點擊的時間記錄）
   csv += '\n\nDetailed Click Data:\n';
