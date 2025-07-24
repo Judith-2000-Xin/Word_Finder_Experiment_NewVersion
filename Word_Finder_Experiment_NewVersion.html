@@ -38,11 +38,11 @@
       align-items: center;
     }
     .highlight {
-      background-color: #28a745; /* green */
+      background-color: #28a745;
       color: white;
     }
     .wrong {
-      background-color: #dc3545; /* red */
+      background-color: #dc3545;
       color: white;
     }
     .hidden { display: none; }
@@ -78,8 +78,8 @@
   </style>
 </head>
 <body>
-  <h2 id="header" class="hidden">🔍 Find the letter: <span id="targetLetter"></span></h2>
-  <div id="grid" class="letter-grid hidden"></div>
+  <h2 id="header">🔍 Find the letter: <span id="targetLetter"></span></h2>
+  <div id="grid" class="letter-grid"></div>
   <div id="restingScreen" class="resting-screen hidden"><span id="restingText"></span></div>
   <div id="summary" class="hidden">
     <table class="summary-table" id="summaryTable"></table>
@@ -160,7 +160,13 @@ function renderPage() {
   });
   startTime = Date.now();
   clearTimeout(pageTimer);
-  pageTimer = setTimeout(nextPage, 90000);
+  pageTimer = setTimeout(nextPageTrigger, 90000);
+}
+
+function nextPageTrigger() {
+  showRestingScreen(() => {
+    nextPage();
+  });
 }
 
 function nextPage() {
@@ -169,19 +175,15 @@ function nextPage() {
   currentPage++;
   if (currentPage >= pages.length) return showSummary();
   correctCount = 0;
-  showRestingScreen(() => {
-    renderPage();
-  });
+  renderPage();
 }
 
 function showRestingScreen(callback) {
   let rest = 3;
   const restDiv = document.getElementById('restingScreen');
-  const grid = document.getElementById('grid');
-  const header = document.getElementById('header');
+  document.getElementById('grid').classList.add('hidden');
+  document.getElementById('header').classList.add('hidden');
   const restText = document.getElementById('restingText');
-  grid.classList.add('hidden');
-  header.classList.add('hidden');
   restText.textContent = `Next page in ${rest} seconds...`;
   restDiv.classList.remove('hidden');
   clearInterval(restTimer);
