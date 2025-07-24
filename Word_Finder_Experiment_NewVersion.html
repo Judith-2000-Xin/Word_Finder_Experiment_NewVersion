@@ -129,6 +129,7 @@ let currentPage = 0;
 let data = [];
 let correctCount = 0;
 let startTime = 0;
+let restTimer = null;
 
 function renderPage() {
   const page = pages[currentPage];
@@ -164,11 +165,11 @@ function nextPage() {
   const restDiv = document.getElementById('restingScreen');
   document.getElementById('restTime').textContent = rest;
   restDiv.classList.remove('hidden');
-  const interval = setInterval(() => {
+  restTimer = setInterval(() => {
     rest--;
     document.getElementById('restTime').textContent = rest;
     if (rest <= 0) {
-      clearInterval(interval);
+      clearInterval(restTimer);
       restDiv.classList.add('hidden');
       renderPage();
       setTimeout(nextPage, 90000);
