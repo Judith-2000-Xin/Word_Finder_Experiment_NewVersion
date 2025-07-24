@@ -161,6 +161,13 @@ function nextPage() {
   currentPage++;
   if (currentPage >= pages.length) return showSummary();
   correctCount = 0;
+  showRestingScreen(() => {
+    renderPage();
+    setTimeout(nextPage, 90000);
+  });
+}
+
+function showRestingScreen(callback) {
   let rest = 3;
   const restDiv = document.getElementById('restingScreen');
   document.getElementById('restTime').textContent = rest;
@@ -171,8 +178,7 @@ function nextPage() {
     if (rest <= 0) {
       clearInterval(restTimer);
       restDiv.classList.add('hidden');
-      renderPage();
-      setTimeout(nextPage, 90000);
+      callback();
     }
   }, 1000);
 }
@@ -204,8 +210,10 @@ function exportCSV() {
 }
 
 function init() {
-  renderPage();
-  setTimeout(nextPage, 90000);
+  showRestingScreen(() => {
+    renderPage();
+    setTimeout(nextPage, 90000);
+  });
 }
 
 init();
