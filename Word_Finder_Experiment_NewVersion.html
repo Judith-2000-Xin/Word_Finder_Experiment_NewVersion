@@ -227,38 +227,33 @@ function renderPage() {
     span.textContent = ch;
     span.className = 'letter';
     span.onclick = () => {
+      // 如果已經被點擊過，就不能再點擊（點擊不得收回）
+      if (span.classList.contains('highlight') || span.classList.contains('wrong')) {
+        return;
+      }
+      
       const clickTime = Date.now();
       const timeFromStart = Math.round((clickTime - pageStartTime) / 1000);
       
-      if (span.classList.contains('highlight') || span.classList.contains('wrong')) {
-        // 取消點擊
-        if (ch === page.letter) {
-          correctCount--;
-        } else {
-          wrongCount--;
-        }
-        span.classList.remove('highlight', 'wrong');
+      // 新點擊
+      const isCorrect = ch === page.letter;
+      span.classList.add(isCorrect ? 'highlight' : 'wrong');
+      
+      if (isCorrect) {
+        correctCount++;
       } else {
-        // 新點擊
-        const isCorrect = ch === page.letter;
-        span.classList.add(isCorrect ? 'highlight' : 'wrong');
-        
-        if (isCorrect) {
-          correctCount++;
-        } else {
-          wrongCount++;
-        }
-        
-        // 記錄點擊資料（包含正確和錯誤的點擊時間）
-        clickData.push({
-          page: currentPage + 1,
-          targetLetter: page.letter,
-          clickedChar: ch,
-          correct: isCorrect,
-          timeInSeconds: timeFromStart,
-          position: i
-        });
+        wrongCount++;
       }
+      
+      // 記錄點擊資料（包含正確和錯誤的點擊時間）
+      clickData.push({
+        page: currentPage + 1,
+        targetLetter: page.letter,
+        clickedChar: ch,
+        correct: isCorrect,
+        timeInSeconds: timeFromStart,
+        position: i
+      });
     };
     gridDiv.appendChild(span);
   });
