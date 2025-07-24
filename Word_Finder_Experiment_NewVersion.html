@@ -130,6 +130,7 @@ let data = [];
 let correctCount = 0;
 let startTime = 0;
 let restTimer = null;
+let pageTimer = null;
 
 function renderPage() {
   const page = pages[currentPage];
@@ -153,6 +154,8 @@ function renderPage() {
     gridDiv.appendChild(span);
   });
   startTime = Date.now();
+  clearTimeout(pageTimer);
+  pageTimer = setTimeout(nextPage, 90000);
 }
 
 function nextPage() {
@@ -163,7 +166,6 @@ function nextPage() {
   correctCount = 0;
   showRestingScreen(() => {
     renderPage();
-    setTimeout(nextPage, 90000);
   });
 }
 
@@ -172,6 +174,7 @@ function showRestingScreen(callback) {
   const restDiv = document.getElementById('restingScreen');
   document.getElementById('restTime').textContent = rest;
   restDiv.classList.remove('hidden');
+  clearInterval(restTimer);
   restTimer = setInterval(() => {
     rest--;
     document.getElementById('restTime').textContent = rest;
@@ -212,7 +215,6 @@ function exportCSV() {
 function init() {
   showRestingScreen(() => {
     renderPage();
-    setTimeout(nextPage, 90000);
   });
 }
 
