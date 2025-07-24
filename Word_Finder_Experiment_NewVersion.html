@@ -65,16 +65,15 @@
     const totalLines = 25;
     const lineLength = 45;
     const totalChars = totalLines * lineLength;
-    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
     const letterQuotas = generateLetterQuotas();
     const articleMap = generateAllArticles();
-    const letterOrder = shuffleArray(letters.split(""));
+    const letterOrder = shuffleArray([...letters]);
     let currentPage = 0;
     const results = [];
 
     function generateLetterQuotas() {
       const quotas = {};
-      const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
       let quotaArray = [];
       while (quotaArray.length < 26) {
         const r = Math.floor(Math.random() * 9) + 8; // 8~16
@@ -146,13 +145,13 @@
       const titleEl = document.getElementById("title");
       const summary = [];
       container.innerHTML = "";
-      titleEl.textContent = `請找出字母：${targetLetter}`;
+      titleEl.textContent = `Find the letter: ${targetLetter}`;
 
       for (let i = 0; i < content.length; i += lineLength) {
         const line = content.slice(i, i + lineLength);
         const div = document.createElement("div");
         div.className = "letter-line";
-        line.forEach((char, idx) => {
+        line.forEach((char) => {
           const span = document.createElement("span");
           span.textContent = char;
           span.style.padding = "2px";
@@ -173,10 +172,10 @@
       }
 
       let seconds = 90;
-      timerEl.textContent = `剩餘時間：${seconds} 秒`;
+      timerEl.textContent = `Time remaining: ${seconds} seconds`;
       const countdown = setInterval(() => {
         seconds--;
-        timerEl.textContent = `剩餘時間：${seconds} 秒`;
+        timerEl.textContent = `Time remaining: ${seconds} seconds`;
         if (seconds <= 0) {
           clearInterval(countdown);
           results.push({ letter: targetLetter, summary });
@@ -187,11 +186,11 @@
 
     function nextPage() {
       const block = document.getElementById("letterBlock");
-      block.innerHTML = "<h2>下一頁即將開始...</h2>";
+      block.innerHTML = "<h2>Next round starting...</h2>";
       let countdown = 3;
       const timerEl = document.getElementById("timer");
       const interval = setInterval(() => {
-        timerEl.textContent = `倒數：${countdown} 秒`;
+        timerEl.textContent = `Next in: ${countdown} seconds`;
         countdown--;
         if (countdown < 0) {
           clearInterval(interval);
@@ -211,7 +210,7 @@
       const timer = document.getElementById("timer");
       const summary = document.getElementById("summary");
       block.innerHTML = "";
-      title.textContent = "遊戲結束";
+      title.textContent = "Game Over";
       timer.textContent = "";
 
       let totalCorrect = 0;
@@ -225,8 +224,8 @@
         totalCorrect += correct;
         totalClicks += total;
       });
-      table += `</table><p>總體正確率：${((totalCorrect / totalClicks) * 100).toFixed(1)}%</p>`;
-      table += `<button onclick="downloadCSV()">下載 CSV</button>`;
+      table += `</table><p>Total Accuracy: ${((totalCorrect / totalClicks) * 100).toFixed(1)}%</p>`;
+      table += `<button onclick="downloadCSV()">Download CSV</button>`;
       summary.classList.remove("hidden");
       summary.innerHTML = table;
     }
