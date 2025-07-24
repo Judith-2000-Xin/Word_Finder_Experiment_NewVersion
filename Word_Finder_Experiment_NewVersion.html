@@ -21,14 +21,13 @@
     .letter-grid {
       display: grid;
       grid-template-columns: repeat(45, 1fr);
-      grid-auto-rows: 1.4em;
+      grid-auto-rows: 1.6em;
       gap: 0.2em;
-      max-width: 95vw;
-      width: 100%;
-      box-sizing: border-box;
-      padding: 0 5px;
-      font-size: clamp(14px, 1.2vw, 22px);
+      width: 95vw;
+      max-width: 1440px;
+      font-size: clamp(14px, 1.4vw, 24px);
       line-height: 1.6;
+      box-sizing: border-box;
     }
     .letter {
       user-select: none;
@@ -38,7 +37,7 @@
       align-items: center;
     }
     .highlight {
-      background-color: yellow;
+      background-color: lightgreen;
     }
     .wrong {
       background-color: lightcoral;
@@ -76,15 +75,46 @@
   </div>
 
 <script>
-const letterContent = {
-  A: `...`, // 此處應貼入每篇從 .txt 中載入的 25 行文字 (A~Z)
-  B: `...`,
-  ...
-  Z: `...`
-};
+function generateFixedDistribution() {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const distribution = {};
+  let total = 400;
+  // Assign minimum 8 first
+  letters.forEach(l => distribution[l] = 8, total -= 8 * 26);
+  // Distribute remaining (400 - 208 = 192)
+  let remaining = 192;
+  while (remaining > 0) {
+    for (const l of letters) {
+      if (remaining === 0) break;
+      if (distribution[l] < 16) {
+        distribution[l]++;
+        remaining--;
+      }
+    }
+  }
+  return distribution;
+}
+
+function generateContent(letter, count) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const total = 45 * 25;
+  const positions = new Set();
+  while (positions.size < count) positions.add(Math.floor(Math.random() * total));
+  let result = [];
+  for (let i = 0; i < total; i++) {
+    result.push(positions.has(i) ? letter : chars[Math.floor(Math.random() * chars.length)]);
+  }
+  return result.join('').match(/.{1,45}/g).join('\n');
+}
+
+const letterDistribution = generateFixedDistribution();
+const letterContent = {};
+Object.entries(letterDistribution).forEach(([l, count]) => {
+  letterContent[l] = generateContent(l, count);
+});
 
 let pages = Object.entries(letterContent).map(([letter, content]) => ({ letter, content }));
-pages = pages.sort(() => Math.random() - 0.5); // 隨機順序
+pages = pages.sort(() => Math.random() - 0.5);
 let currentPage = 0;
 let data = [];
 let correctCount = 0;
@@ -101,8 +131,8 @@ function renderPage() {
     span.textContent = ch;
     span.className = 'letter';
     span.onclick = () => {
-      if (span.classList.contains('highlight')) {
-        span.classList.remove('highlight');
+      if (span.classList.contains('highlight') || span.classList.contains('wrong')) {
+        span.classList.remove('highlight', 'wrong');
         if (ch === page.letter) correctCount--;
       } else {
         span.classList.add(ch === page.letter ? 'highlight' : 'wrong');
