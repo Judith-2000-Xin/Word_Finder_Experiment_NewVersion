@@ -33,9 +33,6 @@
       box-sizing: border-box;
       word-break: break-word;
       padding: 0.5em;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background: white;
     }
     .letter {
       user-select: none;
@@ -69,10 +66,12 @@
     .summary-table {
       margin-top: 2rem;
       border-collapse: collapse;
+      text-align: center;
     }
     .summary-table th, .summary-table td {
       border: 1px solid #000;
-      padding: 5px 10px;
+      padding: 8px 12px;
+      text-align: center;
     }
     #csvBtn {
       margin-top: 10px;
@@ -170,9 +169,12 @@ pages = pages.sort(() => {
 let currentPage = 0;
 let data = [];
 let correctCount = 0;
+let wrongCount = 0;
 let startTime = 0;
 let restTimer = null;
 let pageTimer = null;
+let clickData = []; // 記錄每次點擊的詳細資料
+let pageStartTime = 0; // 頁面實際開始時間（排除倒數）
 
 function renderPage() {
   const page = pages[currentPage];
@@ -182,22 +184,52 @@ function renderPage() {
   gridDiv.innerHTML = '';
   gridDiv.classList.remove('hidden');
   const chars = page.content.split('');
+  
+  // 計算目標字母總數
+  const totalTargetLetters = chars.filter(ch => ch === page.letter).length;
+  
   chars.forEach((ch, i) => {
     const span = document.createElement('span');
     span.textContent = ch;
     span.className = 'letter';
     span.onclick = () => {
+      const clickTime = Date.now();
+      const timeFromStart = Math.round((clickTime - pageStartTime) / 1000);
+      
       if (span.classList.contains('highlight') || span.classList.contains('wrong')) {
-        if (ch === page.letter) correctCount--;
+        // 取消點擊
+        if (ch === page.letter) {
+          correctCount--;
+        } else {
+          wrongCount--;
+        }
         span.classList.remove('highlight', 'wrong');
       } else {
-        span.classList.add(ch === page.letter ? 'highlight' : 'wrong');
-        if (ch === page.letter) correctCount++;
+        // 新點擊
+        const isCorrect = ch === page.letter;
+        span.classList.add(isCorrect ? 'highlight' : 'wrong');
+        
+        if (isCorrect) {
+          correctCount++;
+        } else {
+          wrongCount++;
+        }
+        
+        // 記錄點擊資料
+        clickData.push({
+          page: currentPage + 1,
+          letter: page.letter,
+          clickedChar: ch,
+          correct: isCorrect,
+          time: timeFromStart,
+          position: i
+        });
       }
     };
     gridDiv.appendChild(span);
   });
-  startTime = Date.now();
+  
+  pageStartTime = Date.now(); // 記錄頁面實際開始時間
   clearTimeout(pageTimer);
   pageTimer = setTimeout(nextPageTrigger, 90000);
 }
@@ -209,11 +241,30 @@ function nextPageTrigger() {
 }
 
 function nextPage() {
-  const timeSpent = Math.round((Date.now() - startTime) / 1000);
-  data.push({page: currentPage+1, letter: pages[currentPage].letter, correct: correctCount, time: timeSpent});
+  const timeSpent = 90; // 固定90秒
+  const page = pages[currentPage];
+  const chars = page.content.split('');
+  const totalTargetLetters = chars.filter(ch => ch === page.letter).length;
+  const accuracy = totalTargetLetters > 0 ? ((correctCount / totalTargetLetters) * 100).toFixed(1) : '0.0';
+  const totalClicks = correctCount + wrongCount;
+  const totalAccuracy = totalClicks > 0 ? ((correctCount / totalClicks) * 100).toFixed(1) : '0.0';
+  
+  data.push({
+    page: currentPage + 1, 
+    letter: page.letter, 
+    correct: correctCount,
+    wrong: wrongCount,
+    totalLetters: totalTargetLetters,
+    accuracy: accuracy + '%',
+    totalAccuracy: totalAccuracy + '%',
+    appearances: totalTargetLetters,
+    time: timeSpent
+  });
+  
   currentPage++;
   if (currentPage >= pages.length) return showSummary();
   correctCount = 0;
+  wrongCount = 0;
   renderPage();
 }
 
@@ -253,21 +304,52 @@ function showSummary() {
   document.getElementById('grid').classList.add('hidden');
   document.getElementById('header').classList.add('hidden');
   const table = document.getElementById('summaryTable');
-  table.innerHTML = '<tr><th>Page</th><th>Letter</th><th>Correct</th><th>Time (s)</th></tr>';
+  table.innerHTML = `<tr>
+    <th>Page</th>
+    <th>Letter</th>
+    <th>Correct</th>
+    <th>Wrong</th>
+    <th>Total Letters</th>
+    <th>Accuracy</th>
+    <th>Total Letters Accuracy</th>
+    <th>How Many Times Each Letter Appears</th>
+    <th>Time (s)</th>
+  </tr>`;
+  
   data.forEach(row => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${row.page}</td><td>${row.letter}</td><td>${row.correct}</td><td>${row.time}</td>`;
+    tr.innerHTML = `
+      <td>${row.page}</td>
+      <td>${row.letter}</td>
+      <td>${row.correct}</td>
+      <td>${row.wrong}</td>
+      <td>${row.totalLetters}</td>
+      <td>${row.accuracy}</td>
+      <td>${row.totalAccuracy}</td>
+      <td>${row.appearances}</td>
+      <td>${row.time}</td>
+    `;
     table.appendChild(tr);
   });
+  
   document.getElementById('summary').classList.remove('hidden');
   document.getElementById('summary').classList.add('show');
 }
 
 function exportCSV() {
-  let csv = 'Page,Letter,Correct,Time\n';
+  // 主要資料CSV
+  let csv = 'Page,Letter,Correct,Wrong,Total Letters,Accuracy,Total Letters Accuracy,How Many Times Each Letter Appears,Time\n';
   data.forEach(row => {
-    csv += `${row.page},${row.letter},${row.correct},${row.time}\n`;
+    csv += `${row.page},${row.letter},${row.correct},${row.wrong},${row.totalLetters},${row.accuracy},${row.totalAccuracy},${row.appearances},${row.time}\n`;
   });
+  
+  // 點擊詳細資料CSV
+  csv += '\n\nDetailed Click Data:\n';
+  csv += 'Page,Target Letter,Clicked Character,Correct,Time (s),Position\n';
+  clickData.forEach(click => {
+    csv += `${click.page},${click.letter},${click.clickedChar},${click.correct},${click.time},${click.position}\n`;
+  });
+  
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
