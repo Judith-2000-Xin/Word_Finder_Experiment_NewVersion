@@ -29,7 +29,7 @@
     }
     .letter-line {
       font-size: calc(100vw / 52);
-      line-height: 1.6em;
+      line-height: 1.8em;
       letter-spacing: 0.2em;
       white-space: pre;
       text-align: center;
@@ -38,26 +38,23 @@
     }
     .correct { background-color: lightgreen; }
     .wrong { background-color: lightcoral; }
-    #timer { margin-top: 0.5em; font-weight: bold; }
     #result, #downloadBtn { margin-top: 1em; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="title" id="title">🔍 Find the letter: </div>
-    <div id="timer"></div>
     <div class="letter-block" id="letterBlock"></div>
     <div id="result"></div>
     <button id="downloadBtn" style="display:none;">Download CSV</button>
   </div>
 
   <script>
-    const CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789";
-    const LINE_LEN = 40;
+    const CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const LINE_LEN = 45;
     const LINES = 25;
     const TOTAL = LINE_LEN * LINES;
 
-    // Generate fixed 26 articles (each with a target letter)
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
     let distribution = {};
     let total = 0;
@@ -66,9 +63,8 @@
       total += distribution[l];
     });
 
-    // Adjust to make total 400
     const adjust = 400 - total;
-    const keys = letters.slice();
+    const keys = [...letters];
     while (total !== 400) {
       const k = keys[Math.floor(Math.random() * keys.length)];
       if ((adjust > 0 && distribution[k] < 16) || (adjust < 0 && distribution[k] > 8)) {
@@ -97,7 +93,6 @@
     let interval;
 
     const title = document.getElementById("title");
-    const timerEl = document.getElementById("timer");
     const block = document.getElementById("letterBlock");
     const resultEl = document.getElementById("result");
     const downloadBtn = document.getElementById("downloadBtn");
@@ -137,10 +132,8 @@
       title.textContent = `🔍 Find the letter: ${letter}`;
       render(letter);
       timer = 90;
-      timerEl.textContent = `Time: ${timer}s`;
       interval = setInterval(() => {
         timer--;
-        timerEl.textContent = `Time: ${timer}s`;
         if (timer <= 0) {
           clearInterval(interval);
           setTimeout(next, 3000);
@@ -150,7 +143,6 @@
 
     function showResult() {
       title.textContent = "✅ Game completed!";
-      timerEl.textContent = "";
       block.innerHTML = "";
       const perPage = {};
       data.forEach(d => {
