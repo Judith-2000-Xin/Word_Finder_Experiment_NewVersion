@@ -80,7 +80,7 @@
   </style>
 </head>
 <body>
-  <h2 id="header">🔍 Find the letter: <span id="targetLetter"></span></h2>
+  <h2 id="header"> Find the letter: <span id="targetLetter"></span></h2>
   <div id="grid" class="letter-grid"></div>
   <div id="restingScreen" class="resting-screen hidden"><span id="restingText"></span></div>
   <div id="summary" class="hidden">
@@ -107,7 +107,7 @@ function generateFixedDistribution() {
 }
 
 function generateContent(letter, count) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.replace(letter, '');
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789'.replace(letter, '');
   const total = 45 * 25;
   const indexes = Array(total).fill(null);
   const positions = new Set();
