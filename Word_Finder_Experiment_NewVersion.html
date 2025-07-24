@@ -5,193 +5,188 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Find the Letter</title>
   <style>
-    html, body {
+    body {
+      font-family: 'Times New Roman', serif;
+      background: #f4f4f4;
+      text-align: center;
       margin: 0;
       padding: 0;
-      background: #f4f4f4;
-      font-family: "Times New Roman", serif;
-      overflow: hidden;
     }
-    .container {
+    .content {
+      padding: 1em;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 2vh;
-    }
-    .prompt {
-      font-size: 1.8em;
-      margin-bottom: 1vh;
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(45, auto);
-      row-gap: 0.5em;
-      column-gap: 0.5em;
-      font-size: 1.6vw;
-      text-align: center;
-      word-break: break-word;
+      grid-template-columns: repeat(45, 1fr);
+      max-width: 95vw;
+      margin: auto;
+      gap: 0.3vw;
+      font-size: calc(0.7vw + 0.7vh);
       line-height: 1.8;
-      max-width: 90vw;
-      margin-bottom: 2vh;
+      word-break: break-word;
     }
     .cell {
       cursor: pointer;
       user-select: none;
     }
-    .marked {
-      background-color: lightblue;
+    .cell.selected {
+      background: yellow;
     }
     .overlay {
       position: fixed;
-      bottom: 5vh;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: rgba(0, 0, 0, 0.6);
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.8);
       color: white;
       font-size: 2em;
-      padding: 0.5em 1em;
-      border-radius: 10px;
-      z-index: 10;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+    .hidden {
       display: none;
+    }
+    #exportBtn {
+      margin: 1em;
+      padding: 0.5em 1em;
+      font-size: 1em;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="prompt" id="prompt">🔍 Find the letter: A</div>
+  <div class="content">
+    <h2>🔍 Find the letter: <span id="targetLetter">A</span></h2>
+    <button id="exportBtn">Export CSV</button>
     <div class="grid" id="grid"></div>
-    <button onclick="exportCSV()">Export CSV</button>
   </div>
-  <div id="overlay" class="overlay">Next page in <span id="overlay-count">3</span> seconds...</div>
+  <div id="overlay" class="overlay hidden">Next page in 3 seconds...</div>
+
   <script>
     const TOTAL_PAGES = 26;
-    const LINES = 25;
-    const CHARS_PER_LINE = 45;
-    const TOTAL_TARGETS = 400;
-    const MIN_TARGET = 8;
-    const MAX_TARGET = 16;
-    const TIME_LIMIT = 90;
+    const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    const LETTERS_SET = new Set(LETTERS);
+    const GRID_WIDTH = 45;
+    const GRID_HEIGHT = 25;
+    const TIME_LIMIT = 90; // seconds
 
-    let letters = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
-    let pages = [];
-    let pageOrder = shuffle([...letters]);
-    let currentIndex = -1;
-    let results = [];
+    const usedLetters = new Set();
+    const dataRecords = [];
 
-    const prompt = document.getElementById("prompt");
-    const grid = document.getElementById("grid");
-    const overlay = document.getElementById("overlay");
+    let currentLetter = '';
+    let currentContent = '';
+    let correctCount = 0;
+    let clickCount = 0;
+    let startTime = 0;
+    let pageIndex = 0;
 
-    const overlayCountElem = document.getElementById("overlay-count");
+    const grid = document.getElementById('grid');
+    const overlay = document.getElementById('overlay');
+    const targetLetterDisplay = document.getElementById('targetLetter');
 
-    function shuffle(arr) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      return arr;
+    function getRandomLetter() {
+      const remaining = LETTERS.filter(l => !usedLetters.has(l));
+      return remaining[Math.floor(Math.random() * remaining.length)];
     }
 
-    function generatePages() {
-      let pool = {};
-      let sum = 0;
-      for (let letter of letters) {
-        let count = Math.floor(Math.random() * (MAX_TARGET - MIN_TARGET + 1)) + MIN_TARGET;
-        pool[letter] = count;
-        sum += count;
+    function generateArticle(letter, count = 8 + Math.floor(Math.random() * 9)) {
+      let text = '';
+      const totalCells = GRID_WIDTH * GRID_HEIGHT;
+      const positions = new Set();
+
+      while (positions.size < count) {
+        positions.add(Math.floor(Math.random() * totalCells));
       }
-      let scale = TOTAL_TARGETS / sum;
-      for (let letter in pool) pool[letter] = Math.round(pool[letter] * scale);
 
-      for (let letter of letters) {
-        let targetCount = pool[letter];
-        let totalChars = LINES * CHARS_PER_LINE;
-        let positions = Array(totalChars).fill(null);
-
-        let indices = shuffle([...Array(totalChars).keys()]);
-        for (let i = 0; i < targetCount; i++) {
-          positions[indices[i]] = letter;
+      for (let i = 0; i < totalCells; i++) {
+        if (positions.has(i)) {
+          text += letter;
+        } else {
+          let randChar;
+          do {
+            randChar = Math.random() < 0.5
+              ? String.fromCharCode(65 + Math.floor(Math.random() * 26))
+              : String.fromCharCode(48 + Math.floor(Math.random() * 10));
+          } while (randChar === letter);
+          text += randChar;
         }
-
-        for (let i = 0; i < totalChars; i++) {
-          if (!positions[i]) {
-            positions[i] = randomChar(letter);
-          }
-        }
-
-        pages.push({ target: letter, content: positions });
       }
+      return text;
     }
 
-    function randomChar(exclude) {
-      let chars = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789"].filter(c => c !== exclude);
-      return chars[Math.floor(Math.random() * chars.length)];
-    }
-
-    function showPage(index) {
-      if (index >= TOTAL_PAGES) return finish();
-      grid.innerHTML = "";
-      let { target, content } = pages.find(p => p.target === pageOrder[index]);
-      prompt.textContent = `🔍 Find the letter: ${target}`;
-
-      content.forEach((char, i) => {
-        let span = document.createElement("span");
-        span.textContent = char;
-        span.className = "cell";
-        span.onclick = () => {
-          span.classList.toggle("marked");
-        };
-        grid.appendChild(span);
+    function renderGrid(content) {
+      grid.innerHTML = '';
+      [...content].forEach((ch, i) => {
+        const div = document.createElement('div');
+        div.textContent = ch;
+        div.className = 'cell';
+        div.addEventListener('click', () => {
+          div.classList.toggle('selected');
+        });
+        grid.appendChild(div);
       });
-
-      setTimeout(() => {
-        let start = performance.now();
-        setTimeout(() => {
-          let correct = 0;
-          document.querySelectorAll(".marked").forEach(span => {
-            if (span.textContent === target) correct++;
-          });
-          let end = performance.now();
-          results.push({ letter: target, correct, time: Math.round((end - start) / 1000) });
-
-          currentIndex++;
-          countdownToNextPage();
-        }, TIME_LIMIT * 1000);
-      }, 100);
     }
 
-    function countdownToNextPage() {
-      let overlayCount = 3;
-      overlay.classList.remove("hidden");
-      overlay.style.display = "block";
-      overlayCountElem.textContent = overlayCount;
+    function nextPage() {
+      if (pageIndex >= TOTAL_PAGES) {
+        alert('All done! Export or refresh to restart.');
+        return;
+      }
+      if (pageIndex > 0) {
+        const elapsed = Math.round(performance.now() / 1000 - startTime);
+        const correct = [...document.querySelectorAll('.cell')].filter(cell => cell.textContent === currentLetter && cell.classList.contains('selected')).length;
+        const totalCorrect = [...currentContent].filter(c => c === currentLetter).length;
+        dataRecords.push({
+          letter: currentLetter,
+          correctClicked: correct,
+          totalCorrect,
+          time: Math.min(elapsed, TIME_LIMIT)
+        });
+      }
 
-      let countdown = setInterval(() => {
-        overlayCount--;
-        overlayCountElem.textContent = overlayCount;
-        if (overlayCount === 0) {
-          clearInterval(countdown);
-          overlay.style.display = "none";
-          showPage(currentIndex);
+      overlay.classList.remove('hidden');
+      let countdown = 3;
+      overlay.textContent = `Next page in ${countdown} seconds...`;
+      const interval = setInterval(() => {
+        countdown--;
+        overlay.textContent = `Next page in ${countdown} seconds...`;
+        if (countdown === 0) {
+          clearInterval(interval);
+          overlay.classList.add('hidden');
+
+          currentLetter = getRandomLetter();
+          usedLetters.add(currentLetter);
+          currentContent = generateArticle(currentLetter);
+
+          targetLetterDisplay.textContent = currentLetter;
+          renderGrid(currentContent);
+
+          startTime = performance.now() / 1000;
+          pageIndex++;
+
+          setTimeout(() => nextPage(), TIME_LIMIT * 1000);
         }
       }, 1000);
     }
 
-    function finish() {
-      grid.innerHTML = "<p>Finished!</p>";
-    }
-
-    function exportCSV() {
-      let csv = "Letter,Correct,Time\n" + results.map(r => `${r.letter},${r.correct},${r.time}`).join("\n");
-      let blob = new Blob([csv], { type: "text/csv" });
-      let a = document.createElement("a");
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      let csv = 'Letter,CorrectClicked,TotalCorrect,Time\n';
+      dataRecords.forEach(row => {
+        csv += `${row.letter},${row.correctClicked},${row.totalCorrect},${row.time}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = "results.csv";
+      a.download = 'results.csv';
       a.click();
-    }
+    });
 
-    generatePages();
-    countdownToNextPage();
+    nextPage();
   </script>
 </body>
 </html>
