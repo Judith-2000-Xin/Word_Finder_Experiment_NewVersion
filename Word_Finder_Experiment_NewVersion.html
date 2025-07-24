@@ -13,6 +13,7 @@
       font-size: 16px;
       overflow: hidden;
       height: 100vh;
+      width: 100vw;
     }
     .container {
       width: 100vw;
@@ -20,214 +21,138 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: start;
-      padding-top: 2vh;
+      padding-top: 1vh;
     }
     .title {
-      font-size: 1.5em;
-      margin-bottom: 1vh;
-    }
-    .countdown {
-      display: none;
+      font-size: 1.4em;
+      margin-bottom: 0.5vh;
     }
     .letter-block {
       display: grid;
       grid-template-columns: repeat(1, auto);
-      gap: 4px;
       text-align: center;
     }
     .letter-line {
-      display: inline-block;
-      text-align: center;
-      max-width: 100vw;
-      overflow-x: hidden;
-      white-space: nowrap;
-      font-size: calc(100vw / 52); /* 動態字體大小適應 45 字 + 間距 */
+      font-size: calc(100vw / 52);
       letter-spacing: 0.25em;
-      line-height: 1.6em;
+      line-height: 1.5em;
       font-weight: bold;
+      white-space: nowrap;
       user-select: none;
     }
     .correct { background-color: lightgreen; }
     .wrong { background-color: lightcoral; }
-    .summary {
-      padding: 2em;
-    }
-    .hidden {
-      display: none;
+    button {
+      margin-top: 10px;
+      font-size: 1em;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="title" id="title"></div>
-    <div class="countdown" id="timer"></div>
+    <div class="title" id="title">Loading...</div>
     <div class="letter-block" id="letterBlock"></div>
-    <div class="summary hidden" id="summary"></div>
+    <button id="downloadBtn" style="display:none;" onclick="downloadCSV()">Download CSV</button>
   </div>
 
   <script>
-    const totalLines = 25;
-    const lineLength = 45;
-    const totalChars = totalLines * lineLength;
+    const CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789";
+    const LINE_LEN = 40;
+    const LINES = 25;
+    const TOTAL = LINE_LEN * LINES;
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-    const letterQuotas = generateLetterQuotas();
-    const articleMap = generateAllArticles();
-    const letterOrder = shuffleArray([...letters]);
-    let currentPage = 0;
-    const results = [];
 
-    function generateLetterQuotas() {
-      const quotas = {};
-      let arr = [];
-      while (arr.length < 26) arr.push(Math.floor(Math.random() * 9) + 8);
-      let total = arr.reduce((a, b) => a + b, 0);
-      while (total !== 400) {
-        for (let i = 0; i < arr.length && total !== 400; i++) {
-          if (total < 400 && arr[i] < 16) { arr[i]++; total++; }
-          else if (total > 400 && arr[i] > 8) { arr[i]--; total--; }
+    // 固定假文章對應每個字母（長度 1125）
+    const articles = { };
+    letters.forEach(letter => {
+      let content = "";
+      for (let i = 0; i < TOTAL; i++) {
+        content += CHARSET[Math.floor(Math.random() * CHARSET.length)];
+      }
+      articles[letter] = content;
+    });
+
+    const order = [...letters].sort(() => Math.random() - 0.5);
+    let current = 0;
+    let totalLog = [];
+
+    function injectTargets(text, target, count) {
+      let arr = text.split("");
+      let inserted = 0;
+      while (inserted < count) {
+        let idx = Math.floor(Math.random() * arr.length);
+        if (arr[idx] !== target) {
+          arr[idx] = target;
+          inserted++;
         }
       }
-      letters.forEach((l, i) => quotas[l] = arr[i]);
-      return quotas;
+      return arr.join("");
     }
 
-    function generateAllArticles() {
-      const map = {};
-      for (let letter of letters)
-        map[letter] = generateRandomContent(totalChars);
-      return map;
-    }
-
-    function generateRandomContent(length) {
-      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789";
-      return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]);
-    }
-
-    function injectTargetLetter(content, target, count) {
-      const base = [...content];
-      let placed = 0;
-      while (placed < count) {
-        const i = Math.floor(Math.random() * base.length);
-        if (base[i] !== target) {
-          base[i] = target;
-          placed++;
-        }
-      }
-      return base;
-    }
-
-    function shuffleArray(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    }
-
-    function startPage(index) {
-      const targetLetter = letterOrder[index];
-      const quota = letterQuotas[targetLetter];
-      const baseContent = articleMap[targetLetter];
-      const content = injectTargetLetter(baseContent, targetLetter, quota);
+    function render(letter) {
+      const raw = articles[letter];
+      const count = Math.floor(Math.random() * 9) + 8; // 8~16
+      const modified = injectTargets(raw, letter, count);
+      const lines = modified.match(/.{1,45}/g);
+      const block = document.getElementById("letterBlock");
+      block.innerHTML = "";
+      document.getElementById("title").textContent = "Find the letter: " + letter;
       const startTime = Date.now();
-      const container = document.getElementById("letterBlock");
-      const titleEl = document.getElementById("title");
-      const summary = [];
-      container.innerHTML = "";
-      titleEl.textContent = `Find the letter: ${targetLetter}`;
+      let correct = 0, total = 0, log = [];
 
-      for (let i = 0; i < content.length; i += lineLength) {
-        const line = content.slice(i, i + lineLength);
+      lines.forEach((line, i) => {
         const div = document.createElement("div");
         div.className = "letter-line";
-        line.forEach(char => {
+        [...line].forEach((char, j) => {
           const span = document.createElement("span");
           span.textContent = char;
-          span.style.padding = "2px";
-          span.addEventListener("click", () => {
-            const elapsed = Date.now() - startTime;
+          span.style.cursor = "pointer";
+          span.onclick = function() {
             if (span.classList.contains("correct") || span.classList.contains("wrong")) return;
-            if (char === targetLetter) {
+            total++;
+            const t = Date.now() - startTime;
+            if (char === letter) {
               span.classList.add("correct");
-              summary.push({ char, correct: true, time: elapsed });
+              correct++;
+              log.push({letter: letter, char: char, correct: true, time: t});
             } else {
               span.classList.add("wrong");
-              summary.push({ char, correct: false, time: elapsed });
+              log.push({letter: letter, char: char, correct: false, time: t});
             }
-          });
+          };
           div.appendChild(span);
         });
-        container.appendChild(div);
-      }
-
-      let seconds = 90;
-      const countdown = setInterval(() => {
-        seconds--;
-        if (seconds <= 0) {
-          clearInterval(countdown);
-          results.push({ letter: targetLetter, summary });
-          nextPage();
-        }
-      }, 1000);
-    }
-
-    function nextPage() {
-      const block = document.getElementById("letterBlock");
-      block.innerHTML = "<h2>Next round starting...</h2>";
-      let countdown = 3;
-      const interval = setInterval(() => {
-        countdown--;
-        if (countdown < 0) {
-          clearInterval(interval);
-          currentPage++;
-          if (currentPage < letterOrder.length) startPage(currentPage);
-          else showResults();
-        }
-      }, 1000);
-    }
-
-    function showResults() {
-      const block = document.getElementById("letterBlock");
-      const title = document.getElementById("title");
-      const timer = document.getElementById("timer");
-      const summary = document.getElementById("summary");
-      block.innerHTML = "";
-      title.textContent = "Game Over";
-      timer.textContent = "";
-
-      let totalCorrect = 0;
-      let totalClicks = 0;
-      let table = "<table border='1' cellpadding='6'><tr><th>Letter</th><th>Correct</th><th>Total</th><th>Accuracy</th></tr>";
-      results.forEach(r => {
-        const correct = r.summary.filter(e => e.correct).length;
-        const total = r.summary.length;
-        const accuracy = total > 0 ? ((correct / total) * 100).toFixed(1) + "%" : "0%";
-        table += `<tr><td>${r.letter}</td><td>${correct}</td><td>${total}</td><td>${accuracy}</td></tr>`;
-        totalCorrect += correct;
-        totalClicks += total;
+        block.appendChild(div);
       });
-      table += `</table><p>Total Accuracy: ${((totalCorrect / totalClicks) * 100).toFixed(1)}%</p>`;
-      table += `<button onclick="downloadCSV()">Download CSV</button>`;
-      summary.classList.remove("hidden");
-      summary.innerHTML = table;
+
+      setTimeout(() => {
+        totalLog.push({target: letter, correct, total, log});
+        current++;
+        if (current < order.length) {
+          render(order[current]);
+        } else {
+          document.getElementById("title").textContent = "✅ Game finished!";
+          document.getElementById("letterBlock").innerHTML = "Press the button below to download CSV.";
+          document.getElementById("downloadBtn").style.display = "block";
+        }
+      }, 90000);
     }
 
     function downloadCSV() {
-      let csv = "letter,char,correct,time(ms)\n";
-      results.forEach(r => {
-        r.summary.forEach(entry => {
-          csv += `${r.letter},${entry.char},${entry.correct},${entry.time}\n`;
+      let csv = "Target,Char,Correct,Time(ms)\n";
+      totalLog.forEach(entry => {
+        entry.log.forEach(l => {
+          csv += `${entry.target},${l.char},${l.correct},${l.time}\n`;
         });
       });
-      const blob = new Blob([csv], { type: "text/csv" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "results.csv";
-      link.click();
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = "results.csv";
+      a.click();
     }
 
-    startPage(currentPage);
+    render(order[current]);
   </script>
 </body>
 </html>
