@@ -10,7 +10,7 @@
       padding: 0;
       font-family: "Times New Roman", serif;
       background: #f4f4f4;
-      overflow: hidden;
+      overflow-x: hidden;
     }
     body {
       display: flex;
@@ -37,10 +37,12 @@
       align-items: center;
     }
     .highlight {
-      background-color: lightgreen;
+      background-color: #3cb371; /* green */
+      color: white;
     }
     .wrong {
-      background-color: lightcoral;
+      background-color: #dc143c; /* red */
+      color: white;
     }
     .hidden { display: none; }
     .resting-screen {
@@ -62,7 +64,13 @@
       border: 1px solid #000;
       padding: 5px 10px;
     }
-    #csvBtn { margin-top: 10px; }
+    #csvBtn {
+      margin-top: 10px;
+      display: none;
+    }
+    #summary.show #csvBtn {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -78,11 +86,8 @@
 function generateFixedDistribution() {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   const distribution = {};
-  let total = 400;
-  // Assign minimum 8 first
-  letters.forEach(l => distribution[l] = 8, total -= 8 * 26);
-  // Distribute remaining (400 - 208 = 192)
-  let remaining = 192;
+  letters.forEach(l => distribution[l] = 8);
+  let remaining = 400 - 26 * 8;
   while (remaining > 0) {
     for (const l of letters) {
       if (remaining === 0) break;
@@ -132,8 +137,8 @@ function renderPage() {
     span.className = 'letter';
     span.onclick = () => {
       if (span.classList.contains('highlight') || span.classList.contains('wrong')) {
-        span.classList.remove('highlight', 'wrong');
         if (ch === page.letter) correctCount--;
+        span.classList.remove('highlight', 'wrong');
       } else {
         span.classList.add(ch === page.letter ? 'highlight' : 'wrong');
         if (ch === page.letter) correctCount++;
@@ -176,6 +181,7 @@ function showSummary() {
     table.appendChild(tr);
   });
   document.getElementById('summary').classList.remove('hidden');
+  document.getElementById('summary').classList.add('show');
 }
 
 function exportCSV() {
