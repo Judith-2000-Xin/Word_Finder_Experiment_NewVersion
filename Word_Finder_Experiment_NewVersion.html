@@ -16,17 +16,20 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 2vh 0;
+      padding: 1vh 0;
+      height: 100vh;
+      box-sizing: border-box;
     }
     .letter-grid {
       display: grid;
       grid-template-columns: repeat(45, 1fr);
-      grid-auto-rows: 1.6em;
-      gap: 0.2em;
-      width: 95vw;
-      max-width: 1440px;
-      font-size: clamp(16px, 1.5vw, 24px);
-      line-height: 1.6;
+      grid-auto-rows: minmax(2.2em, auto);
+      gap: 0.3em;
+      width: 96vw;
+      height: 88vh;
+      max-width: 1600px;
+      font-size: clamp(18px, 2.2vw, 32px);
+      line-height: 2.0;
       box-sizing: border-box;
       word-break: break-word;
     }
@@ -80,56 +83,82 @@
   </style>
 </head>
 <body>
-  <h2 id="header"> Find the letter: <span id="targetLetter"></span></h2>
+  <div id="welcomeScreen" class="resting-screen">
+    <div style="text-align: center;">
+      <h1 style="margin-bottom: 1em;">🔍 Letter Finder Game</h1>
+      <p style="font-size: 0.6em; margin-bottom: 1.5em; max-width: 600px; line-height: 1.4;">
+        Find and click on the specified letter in the grid. 
+        Click correctly to highlight the letter in green, wrong clicks will show in red. 
+        Good luck!
+      </p>
+      <button id="startBtn" style="font-size: 0.5em; padding: 15px 30px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer;">
+        Start Game
+      </button>
+    </div>
+  </div>
+  <h2 id="header" class="hidden">🔍 Find the letter: <span id="targetLetter"></span></h2>
   <div id="grid" class="letter-grid"></div>
   <div id="restingScreen" class="resting-screen hidden"><span id="restingText"></span></div>
   <div id="summary" class="hidden">
     <table class="summary-table" id="summaryTable"></table>
-    <button id="csvBtn" onclick="exportCSV()">Export CSV</button>
+    <button id="csvBtn">Export CSV</button>
   </div>
 
 <script>
-function generateFixedDistribution() {
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-  const distribution = {};
-  letters.forEach(l => distribution[l] = 8);
-  let remaining = 400 - 26 * 8;
-  while (remaining > 0) {
-    for (const l of letters) {
-      if (remaining === 0) break;
-      if (distribution[l] < 16) {
-        distribution[l]++;
-        remaining--;
-      }
-    }
-  }
-  return distribution;
+// 為每個字母生成固定內容（使用種子確保一致性）
+function seededRandom(seed) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
 }
 
-function generateContent(letter, count) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789'.replace(letter, '');
-  const total = 45 * 25;
-  const indexes = Array(total).fill(null);
-  const positions = new Set();
-  while (positions.size < count) positions.add(Math.floor(Math.random() * total));
-  for (let i = 0; i < total; i++) {
-    if (positions.has(i)) {
-      indexes[i] = letter;
-    } else {
-      indexes[i] = chars[Math.floor(Math.random() * chars.length)];
-    }
+function generateFixedContent(targetLetter, seed = 12345) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ';
+  const otherChars = chars.replace(targetLetter, '');
+  const totalCells = 45 * 25; // 1125 cells
+  const targetCount = 12; // 每個字母出現12次
+  
+  let content = [];
+  let randomSeed = seed + targetLetter.charCodeAt(0);
+  
+  // 先填充其他字符
+  for (let i = 0; i < totalCells; i++) {
+    randomSeed = (randomSeed * 9301 + 49297) % 233280;
+    const randomIndex = Math.floor((randomSeed / 233280) * otherChars.length);
+    content[i] = otherChars[randomIndex];
   }
-  return indexes.join('');
+  
+  // 隨機選擇位置放置目標字母
+  const targetPositions = new Set();
+  randomSeed = seed + targetLetter.charCodeAt(0) * 100;
+  
+  while (targetPositions.size < targetCount) {
+    randomSeed = (randomSeed * 9301 + 49297) % 233280;
+    const position = Math.floor((randomSeed / 233280) * totalCells);
+    targetPositions.add(position);
+  }
+  
+  // 在選定位置放置目標字母
+  targetPositions.forEach(pos => {
+    content[pos] = targetLetter;
+  });
+  
+  return content.join('');
 }
 
-const letterDistribution = generateFixedDistribution();
+// 生成所有字母的固定內容
 const letterContent = {};
-Object.entries(letterDistribution).forEach(([l, count]) => {
-  letterContent[l] = generateContent(l, count);
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(letter => {
+  letterContent[letter] = generateFixedContent(letter);
 });
 
 let pages = Object.entries(letterContent).map(([letter, content]) => ({ letter, content }));
-pages = pages.sort(() => Math.random() - 0.5);
+// 打亂順序但保持內容固定
+let shuffleSeed = 54321;
+pages = pages.sort(() => {
+  shuffleSeed = (shuffleSeed * 9301 + 49297) % 233280;
+  return (shuffleSeed / 233280) - 0.5;
+});
+
 let currentPage = 0;
 let data = [];
 let correctCount = 0;
@@ -184,23 +213,18 @@ function showRestingScreen(callback) {
   const restDiv = document.getElementById('restingScreen');
   const restText = document.getElementById('restingText');
   
-  // 清除任何現有計時器
   if (restTimer) {
     clearTimeout(restTimer);
     restTimer = null;
   }
   
-  // 確保遊戲頁面完全隱藏
   document.getElementById('grid').classList.add('hidden');
   document.getElementById('header').classList.add('hidden');
   
-  // 顯示倒數頁面
   restDiv.classList.remove('hidden');
-  restDiv.style.display = 'flex'; // 強制顯示
+  restDiv.style.display = 'flex';
   
   let countdown = 3;
-  
-  // 立即顯示初始倒數
   restText.textContent = `Next page in ${countdown} seconds...`;
   
   const timer = setInterval(() => {
@@ -209,12 +233,9 @@ function showRestingScreen(callback) {
     if (countdown > 0) {
       restText.textContent = `Next page in ${countdown} seconds...`;
     } else {
-      // 倒數結束
       clearInterval(timer);
-      // 強制隱藏倒數頁面
       restDiv.style.display = 'none';
       restDiv.classList.add('hidden');
-      // 執行回調函數
       callback();
     }
   }, 1000);
@@ -246,13 +267,22 @@ function exportCSV() {
   link.click();
 }
 
-function init() {
+function startGame() {
+  document.getElementById('welcomeScreen').style.display = 'none';
   showRestingScreen(() => {
     renderPage();
   });
 }
 
-init();
+// 修復開始按鈕事件監聽
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('csvBtn').addEventListener('click', exportCSV);
+  
+  // 初始化隱藏遊戲元素
+  document.getElementById('grid').classList.add('hidden');
+  document.getElementById('header').classList.add('hidden');
+});
 </script>
 </body>
 </html>
