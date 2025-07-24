@@ -25,7 +25,7 @@
       gap: 0.2em;
       width: 95vw;
       max-width: 1440px;
-      font-size: clamp(14px, 1.4vw, 24px);
+      font-size: clamp(18px, 1.4vw, 24px);
       line-height: 1.6;
       box-sizing: border-box;
     }
@@ -124,6 +124,7 @@ let currentPage = 0;
 let data = [];
 let correctCount = 0;
 let startTime = 0;
+let restTimeout = null;
 
 function renderPage() {
   const page = pages[currentPage];
@@ -156,16 +157,16 @@ function nextPage() {
   if (currentPage >= pages.length) return showSummary();
   correctCount = 0;
   let rest = 3;
-  document.getElementById('restingScreen').classList.remove('hidden');
   document.getElementById('restTime').textContent = rest;
+  document.getElementById('restingScreen').classList.remove('hidden');
   const interval = setInterval(() => {
     rest--;
     document.getElementById('restTime').textContent = rest;
-    if (rest === 0) {
+    if (rest <= 0) {
       clearInterval(interval);
       document.getElementById('restingScreen').classList.add('hidden');
       renderPage();
-      setTimeout(nextPage, 90000);
+      restTimeout = setTimeout(nextPage, 90000);
     }
   }, 1000);
 }
@@ -198,7 +199,7 @@ function exportCSV() {
 
 function init() {
   renderPage();
-  setTimeout(nextPage, 90000);
+  restTimeout = setTimeout(nextPage, 90000);
 }
 
 init();
