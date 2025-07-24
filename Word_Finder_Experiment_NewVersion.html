@@ -45,11 +45,13 @@
       background-color: #dc3545;
       color: white;
     }
-    .hidden { display: none; }
+    .hidden { 
+      display: none !important; 
+    }
     .resting-screen {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(0, 0, 0, 0.9);
       color: white;
       font-size: 2em;
       display: flex;
@@ -179,27 +181,43 @@ function nextPage() {
 }
 
 function showRestingScreen(callback) {
-  let rest = 3;
   const restDiv = document.getElementById('restingScreen');
+  const restText = document.getElementById('restingText');
+  
+  // 清除任何現有計時器
+  if (restTimer) {
+    clearTimeout(restTimer);
+    restTimer = null;
+  }
+  
+  // 確保遊戲頁面完全隱藏
   document.getElementById('grid').classList.add('hidden');
   document.getElementById('header').classList.add('hidden');
-  const restText = document.getElementById('restingText');
-  restText.textContent = `Next page in ${rest} seconds...`;
-  restDiv.classList.remove('hidden');
-  clearInterval(restTimer);
   
-  const countDown = () => {
-    rest--;
-    if (rest > 0) {
-      restText.textContent = `Next page in ${rest} seconds...`;
-      setTimeout(countDown, 1000);
+  // 顯示倒數頁面
+  restDiv.classList.remove('hidden');
+  restDiv.style.display = 'flex'; // 強制顯示
+  
+  let countdown = 3;
+  
+  // 立即顯示初始倒數
+  restText.textContent = `Next page in ${countdown} seconds...`;
+  
+  const timer = setInterval(() => {
+    countdown--;
+    
+    if (countdown > 0) {
+      restText.textContent = `Next page in ${countdown} seconds...`;
     } else {
+      // 倒數結束
+      clearInterval(timer);
+      // 強制隱藏倒數頁面
+      restDiv.style.display = 'none';
       restDiv.classList.add('hidden');
+      // 執行回調函數
       callback();
     }
-  };
-  
-  setTimeout(countDown, 1000);
+  }, 1000);
 }
 
 function showSummary() {
