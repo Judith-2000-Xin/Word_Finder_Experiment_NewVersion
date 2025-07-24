@@ -28,8 +28,7 @@
       margin-bottom: 1vh;
     }
     .countdown {
-      font-size: 1.2em;
-      margin-bottom: 2vh;
+      display: none;
     }
     .letter-block {
       display: grid;
@@ -39,9 +38,10 @@
     }
     .letter-line {
       letter-spacing: 0.5em;
-      line-height: 0.5em;
+      line-height: 1.5em;
       font-weight: bold;
       user-select: none;
+      white-space: nowrap;
     }
     .correct { background-color: lightgreen; }
     .wrong { background-color: lightcoral; }
@@ -74,46 +74,33 @@
 
     function generateLetterQuotas() {
       const quotas = {};
-      let quotaArray = [];
-      while (quotaArray.length < 26) {
-        const r = Math.floor(Math.random() * 9) + 8; // 8~16
-        quotaArray.push(r);
-      }
-      let currentTotal = quotaArray.reduce((a, b) => a + b, 0);
-      while (currentTotal !== 400) {
-        for (let i = 0; i < quotaArray.length && currentTotal !== 400; i++) {
-          if (currentTotal < 400 && quotaArray[i] < 16) {
-            quotaArray[i]++;
-            currentTotal++;
-          } else if (currentTotal > 400 && quotaArray[i] > 8) {
-            quotaArray[i]--;
-            currentTotal--;
-          }
+      let arr = [];
+      while (arr.length < 26) arr.push(Math.floor(Math.random() * 9) + 8);
+      let total = arr.reduce((a, b) => a + b, 0);
+      while (total !== 400) {
+        for (let i = 0; i < arr.length && total !== 400; i++) {
+          if (total < 400 && arr[i] < 16) { arr[i]++; total++; }
+          else if (total > 400 && arr[i] > 8) { arr[i]--; total--; }
         }
       }
-      letters.forEach((l, i) => quotas[l] = quotaArray[i]);
+      letters.forEach((l, i) => quotas[l] = arr[i]);
       return quotas;
     }
 
     function generateAllArticles() {
       const map = {};
-      for (let letter of letters) {
+      for (let letter of letters)
         map[letter] = generateRandomContent(totalChars);
-      }
       return map;
     }
 
     function generateRandomContent(length) {
       const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      const result = [];
-      for (let i = 0; i < length; i++) {
-        result.push(chars[Math.floor(Math.random() * chars.length)]);
-      }
-      return result;
+      return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]);
     }
 
     function injectTargetLetter(content, target, count) {
-      let base = content.slice();
+      const base = [...content];
       let placed = 0;
       while (placed < count) {
         const i = Math.floor(Math.random() * base.length);
@@ -126,12 +113,11 @@
     }
 
     function shuffleArray(array) {
-      let copy = array.slice();
-      for (let i = copy.length - 1; i > 0; i--) {
+      for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [copy[i], copy[j]] = [copy[j], copy[i]];
+        [array[i], array[j]] = [array[j], array[i]];
       }
-      return copy;
+      return array;
     }
 
     function startPage(index) {
@@ -141,7 +127,6 @@
       const content = injectTargetLetter(baseContent, targetLetter, quota);
       const startTime = Date.now();
       const container = document.getElementById("letterBlock");
-      const timerEl = document.getElementById("timer");
       const titleEl = document.getElementById("title");
       const summary = [];
       container.innerHTML = "";
@@ -151,7 +136,7 @@
         const line = content.slice(i, i + lineLength);
         const div = document.createElement("div");
         div.className = "letter-line";
-        line.forEach((char) => {
+        line.forEach(char => {
           const span = document.createElement("span");
           span.textContent = char;
           span.style.padding = "2px";
@@ -172,10 +157,8 @@
       }
 
       let seconds = 90;
-      timerEl.textContent = `Time remaining: ${seconds} seconds`;
       const countdown = setInterval(() => {
         seconds--;
-        timerEl.textContent = `Time remaining: ${seconds} seconds`;
         if (seconds <= 0) {
           clearInterval(countdown);
           results.push({ letter: targetLetter, summary });
@@ -188,18 +171,13 @@
       const block = document.getElementById("letterBlock");
       block.innerHTML = "<h2>Next round starting...</h2>";
       let countdown = 3;
-      const timerEl = document.getElementById("timer");
       const interval = setInterval(() => {
-        timerEl.textContent = `Next in: ${countdown} seconds`;
         countdown--;
         if (countdown < 0) {
           clearInterval(interval);
           currentPage++;
-          if (currentPage < letterOrder.length) {
-            startPage(currentPage);
-          } else {
-            showResults();
-          }
+          if (currentPage < letterOrder.length) startPage(currentPage);
+          else showResults();
         }
       }, 1000);
     }
