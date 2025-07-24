@@ -55,7 +55,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      z-index: 999;
+      z-index: 9999;
     }
     .summary-table {
       margin-top: 2rem;
@@ -72,10 +72,13 @@
     #summary.show #csvBtn {
       display: block;
     }
+    #header.hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <h2>🔍 Find the letter: <span id="targetLetter"></span></h2>
+  <h2 id="header">🔍 Find the letter: <span id="targetLetter"></span></h2>
   <div id="grid" class="letter-grid"></div>
   <div id="restingScreen" class="resting-screen hidden">Next page in <span id="restTime">3</span> seconds...</div>
   <div id="summary" class="hidden">
@@ -135,8 +138,10 @@ let pageTimer = null;
 function renderPage() {
   const page = pages[currentPage];
   document.getElementById('targetLetter').textContent = page.letter;
+  document.getElementById('header').classList.remove('hidden');
   const gridDiv = document.getElementById('grid');
   gridDiv.innerHTML = '';
+  gridDiv.classList.remove('hidden');
   const chars = page.content.split('');
   chars.forEach((ch, i) => {
     const span = document.createElement('span');
@@ -172,6 +177,8 @@ function nextPage() {
 function showRestingScreen(callback) {
   let rest = 3;
   const restDiv = document.getElementById('restingScreen');
+  document.getElementById('grid').classList.add('hidden');
+  document.getElementById('header').classList.add('hidden');
   document.getElementById('restTime').textContent = rest;
   restDiv.classList.remove('hidden');
   clearInterval(restTimer);
@@ -188,7 +195,7 @@ function showRestingScreen(callback) {
 
 function showSummary() {
   document.getElementById('grid').classList.add('hidden');
-  document.getElementById('targetLetter').textContent = '';
+  document.getElementById('header').classList.add('hidden');
   const table = document.getElementById('summaryTable');
   table.innerHTML = '<tr><th>Page</th><th>Letter</th><th>Correct</th><th>Time (s)</th></tr>';
   data.forEach(row => {
