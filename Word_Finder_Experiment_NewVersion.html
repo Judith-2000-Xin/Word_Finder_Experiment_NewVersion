@@ -2,57 +2,53 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Letter Finder Game</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      background: #fff;
+      background: #f4f4f4;
       font-family: "Times New Roman", serif;
-      font-size: 16px;
       overflow: hidden;
       height: 100vh;
       width: 100vw;
     }
     .container {
-      width: 100vw;
-      height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       padding-top: 1vh;
     }
     .title {
-      font-size: 1.4em;
-      margin-bottom: 0.5vh;
+      font-size: 1.6em;
+      font-weight: bold;
     }
     .letter-block {
-      display: grid;
-      grid-template-columns: repeat(1, auto);
-      text-align: center;
+      margin-top: 1vh;
     }
     .letter-line {
       font-size: calc(100vw / 52);
-      letter-spacing: 0.25em;
-      line-height: 1.5em;
+      line-height: 1.6em;
+      letter-spacing: 0.2em;
+      white-space: pre;
+      text-align: center;
       font-weight: bold;
-      white-space: nowrap;
       user-select: none;
     }
     .correct { background-color: lightgreen; }
     .wrong { background-color: lightcoral; }
-    button {
-      margin-top: 10px;
-      font-size: 1em;
-    }
+    #timer { margin-top: 0.5em; font-weight: bold; }
+    #result, #downloadBtn { margin-top: 1em; }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="title" id="title">Loading...</div>
+    <div class="title" id="title">🔍 Find the letter: </div>
+    <div id="timer"></div>
     <div class="letter-block" id="letterBlock"></div>
-    <button id="downloadBtn" style="display:none;" onclick="downloadCSV()">Download CSV</button>
+    <div id="result"></div>
+    <button id="downloadBtn" style="display:none;">Download CSV</button>
   </div>
 
   <script>
@@ -60,99 +56,132 @@
     const LINE_LEN = 40;
     const LINES = 25;
     const TOTAL = LINE_LEN * LINES;
-    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-    // 固定假文章對應每個字母（長度 1125）
-    const articles = { };
-    letters.forEach(letter => {
-      let content = "";
-      for (let i = 0; i < TOTAL; i++) {
-        content += CHARSET[Math.floor(Math.random() * CHARSET.length)];
+    // Generate fixed 26 articles (each with a target letter)
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
+    let distribution = {};
+    let total = 0;
+    letters.forEach(l => {
+      distribution[l] = Math.floor(Math.random() * 9) + 8;
+      total += distribution[l];
+    });
+
+    // Adjust to make total 400
+    const adjust = 400 - total;
+    const keys = letters.slice();
+    while (total !== 400) {
+      const k = keys[Math.floor(Math.random() * keys.length)];
+      if ((adjust > 0 && distribution[k] < 16) || (adjust < 0 && distribution[k] > 8)) {
+        distribution[k] += adjust > 0 ? 1 : -1;
+        total += adjust > 0 ? 1 : -1;
       }
-      articles[letter] = content;
+    }
+
+    const articles = {};
+    letters.forEach(letter => {
+      let chars = [];
+      for (let i = 0; i < TOTAL - distribution[letter]; i++) {
+        chars.push(CHARSET[Math.floor(Math.random() * CHARSET.length)]);
+      }
+      for (let i = 0; i < distribution[letter]; i++) {
+        chars.push(letter);
+      }
+      chars = chars.sort(() => Math.random() - 0.5);
+      articles[letter] = chars.join('');
     });
 
     const order = [...letters].sort(() => Math.random() - 0.5);
-    let current = 0;
-    let totalLog = [];
+    let current = -1;
+    let data = [];
+    let timer = 90;
+    let interval;
 
-    function injectTargets(text, target, count) {
-      let arr = text.split("");
-      let inserted = 0;
-      while (inserted < count) {
-        let idx = Math.floor(Math.random() * arr.length);
-        if (arr[idx] !== target) {
-          arr[idx] = target;
-          inserted++;
-        }
-      }
-      return arr.join("");
-    }
+    const title = document.getElementById("title");
+    const timerEl = document.getElementById("timer");
+    const block = document.getElementById("letterBlock");
+    const resultEl = document.getElementById("result");
+    const downloadBtn = document.getElementById("downloadBtn");
 
     function render(letter) {
-      const raw = articles[letter];
-      const count = Math.floor(Math.random() * 9) + 8; // 8~16
-      const modified = injectTargets(raw, letter, count);
-      const lines = modified.match(/.{1,45}/g);
-      const block = document.getElementById("letterBlock");
-      block.innerHTML = "";
-      document.getElementById("title").textContent = "Find the letter: " + letter;
+      block.innerHTML = '';
+      const text = articles[letter];
+      const lines = text.match(/.{1,45}/g);
       const startTime = Date.now();
-      let correct = 0, total = 0, log = [];
 
-      lines.forEach((line, i) => {
+      lines.forEach((line, row) => {
         const div = document.createElement("div");
         div.className = "letter-line";
-        [...line].forEach((char, j) => {
+        [...line].forEach((char, col) => {
           const span = document.createElement("span");
           span.textContent = char;
-          span.style.cursor = "pointer";
-          span.onclick = function() {
+          span.onclick = () => {
             if (span.classList.contains("correct") || span.classList.contains("wrong")) return;
-            total++;
-            const t = Date.now() - startTime;
-            if (char === letter) {
-              span.classList.add("correct");
-              correct++;
-              log.push({letter: letter, char: char, correct: true, time: t});
-            } else {
-              span.classList.add("wrong");
-              log.push({letter: letter, char: char, correct: false, time: t});
-            }
+            const correct = char === letter;
+            span.classList.add(correct ? "correct" : "wrong");
+            const t = Math.floor((Date.now() - startTime) / 1000);
+            data.push({ page: current + 1, letter, char, correct, time: t });
           };
           div.appendChild(span);
         });
         block.appendChild(div);
       });
-
-      setTimeout(() => {
-        totalLog.push({target: letter, correct, total, log});
-        current++;
-        if (current < order.length) {
-          render(order[current]);
-        } else {
-          document.getElementById("title").textContent = "✅ Game finished!";
-          document.getElementById("letterBlock").innerHTML = "Press the button below to download CSV.";
-          document.getElementById("downloadBtn").style.display = "block";
-        }
-      }, 90000);
     }
 
-    function downloadCSV() {
-      let csv = "Target,Char,Correct,Time(ms)\n";
-      totalLog.forEach(entry => {
-        entry.log.forEach(l => {
-          csv += `${entry.target},${l.char},${l.correct},${l.time}\n`;
-        });
+    function next() {
+      current++;
+      if (current >= order.length) {
+        showResult();
+        return;
+      }
+      const letter = order[current];
+      title.textContent = `🔍 Find the letter: ${letter}`;
+      render(letter);
+      timer = 90;
+      timerEl.textContent = `Time: ${timer}s`;
+      interval = setInterval(() => {
+        timer--;
+        timerEl.textContent = `Time: ${timer}s`;
+        if (timer <= 0) {
+          clearInterval(interval);
+          setTimeout(next, 3000);
+        }
+      }, 1000);
+    }
+
+    function showResult() {
+      title.textContent = "✅ Game completed!";
+      timerEl.textContent = "";
+      block.innerHTML = "";
+      const perPage = {};
+      data.forEach(d => {
+        if (!perPage[d.page]) perPage[d.page] = { correct: 0, total: 0 };
+        perPage[d.page].total++;
+        if (d.correct) perPage[d.page].correct++;
+      });
+      let html = "<h3>Results</h3><table border='1'><tr><th>Page</th><th>Letter</th><th>Correct</th><th>Total</th><th>Accuracy</th></tr>";
+      Object.entries(perPage).forEach(([p, val]) => {
+        const acc = ((val.correct / val.total) * 100).toFixed(1);
+        html += `<tr><td>${p}</td><td>${order[p - 1]}</td><td>${val.correct}</td><td>${val.total}</td><td>${acc}%</td></tr>`;
+      });
+      html += "</table>";
+      resultEl.innerHTML = html;
+      downloadBtn.style.display = "block";
+    }
+
+    downloadBtn.onclick = () => {
+      let csv = "Page,Letter,Char,Correct,Time\n";
+      data.forEach(d => {
+        csv += `${d.page},${d.letter},${d.char},${d.correct},${d.time}\n`;
       });
       const blob = new Blob([csv], { type: 'text/csv' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
       a.download = "results.csv";
       a.click();
-    }
+    };
 
-    render(order[current]);
+    next();
   </script>
 </body>
 </html>
