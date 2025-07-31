@@ -8,7 +8,7 @@
     html, body {
       margin: 0;
       padding: 0;
-      font-family: "Times New Roman", serif;
+      font-family: "Times New Roman", serif;a
       background: #ffffff;
       overflow-x: auto;
     }
@@ -148,8 +148,8 @@ function generateFixedContent(targetLetter, seed = 12345) {
   const otherChars = chars.replace(targetLetter, '');
   const totalCells = 45 * 25; // 1125 cells
   
-  // 確保每個字母出現8-16次，使用字母的ASCII值來決定具體數量
-  const baseCount = 8;
+  // 確保每個字母出現12-16次，使用字母的ASCII值來決定具體數量
+  const baseCount = 12;
   const letterIndex = targetLetter.charCodeAt(0) - 65; // A=0, B=1, ...
   const targetCount = baseCount + (letterIndex % 9); // 8-16之間循環
   
