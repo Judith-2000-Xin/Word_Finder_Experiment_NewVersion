@@ -151,7 +151,8 @@ function generateFixedContent(targetLetter, seed = 12345) {
   // 確保每個字母出現12-16次，使用字母的ASCII值來決定具體數量
   const baseCount = 12;
   const letterIndex = targetLetter.charCodeAt(0) - 65; // A=0, B=1, ...
-  const targetCount = baseCount + (letterIndex % 9); // 8-16之間循環
+  const extraLetters = [0, 3, 6, 9, 12, 15, 18, 21]; // A, D, G, J, M, P, S, V 獲得額外1次
+  const targetCount = extraLetters.includes(letterIndex) ? baseCount + 1 : baseCount;
   
   let content = [];
   let randomSeed = seed + targetLetter.charCodeAt(0);
