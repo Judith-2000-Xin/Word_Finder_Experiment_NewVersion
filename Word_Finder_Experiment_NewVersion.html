@@ -254,7 +254,7 @@ let pages = Object.entries(letterContent).map(([letter, content]) => ({ letter, 
 // 使用更好的洗牌演算法 (Fisher-Yates shuffle) 來打亂順序
 function shuffleArray(array) {
   let shuffleSeed = Date.now() % 233280; // 使用當前時間作為種子
-  for (let i = array.length - 1; i > 0; i--; ) {
+  for (let i = array.length - 1; i > 0; i--) {
     shuffleSeed = (shuffleSeed * 9301 + 49297) % 233280;
     const j = Math.floor((shuffleSeed / 233280) * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
