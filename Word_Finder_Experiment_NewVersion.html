@@ -81,6 +81,47 @@
       align-items: center;
       z-index: 9999;
     }
+    .name-input-screen {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      font-size: 2em;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .name-input-container {
+      text-align: center;
+      max-width: 600px;
+      padding: 2rem;
+    }
+    .name-input-container h2 {
+      font-size: 1em;
+      margin-bottom: 1em;
+      line-height: 1.4;
+    }
+    .name-input-container input {
+      font-size: 0.6em;
+      padding: 15px 20px;
+      width: 300px;
+      max-width: 80vw;
+      border: 2px solid #28a745;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 1em;
+    }
+    .name-input-container button {
+      font-size: 0.5em;
+      padding: 15px 30px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
     .summary-table {
       margin-top: 2rem;
       border-collapse: collapse;
@@ -110,6 +151,12 @@
       max-width: 1200px;
       overflow-x: auto;
     }
+    .player-name-display {
+      font-size: 1.2em;
+      margin-bottom: 1rem;
+      color: #28a745;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -126,10 +173,22 @@
       </button>
     </div>
   </div>
+  
+  <div id="nameInputScreen" class="name-input-screen hidden">
+    <div class="name-input-container">
+      <h2>Please enter your name. Thank you ^^</h2>
+      <div>
+        <input type="text" id="playerNameInput" placeholder="Enter your name here" maxlength="50">
+        <button id="submitNameBtn">Submit</button>
+      </div>
+    </div>
+  </div>
+  
   <h2 id="header" class="hidden" style="margin: 0.5em 0; font-size: 1.5em;">🔍 Find the letter: <span id="targetLetter"></span></h2>
   <div id="grid" class="letter-grid"></div>
   <div id="restingScreen" class="resting-screen hidden"><span id="restingText"></span></div>
   <div id="summary" class="hidden">
+    <div class="player-name-display" id="playerNameDisplay"></div>
     <div class="table-container">
       <table class="summary-table" id="summaryTable"></table>
     </div>
@@ -137,6 +196,9 @@
   </div>
 
 <script>
+// 玩家姓名變數
+let playerName = '';
+
 // 為每個字母生成固定內容（使用種子確保一致性）
 function seededRandom(seed) {
   const x = Math.sin(seed) * 10000;
@@ -192,7 +254,7 @@ let pages = Object.entries(letterContent).map(([letter, content]) => ({ letter, 
 // 使用更好的洗牌演算法 (Fisher-Yates shuffle) 來打亂順序
 function shuffleArray(array) {
   let shuffleSeed = Date.now() % 233280; // 使用當前時間作為種子
-  for (let i = array.length - 1; i > 0; i--) {
+  for (let i = array.length - 1; i > 0; i--; ) {
     shuffleSeed = (shuffleSeed * 9301 + 49297) % 233280;
     const j = Math.floor((shuffleSeed / 233280) * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
@@ -289,7 +351,7 @@ function nextPage() {
   });
   
   currentPage++;
-  if (currentPage >= pages.length) return showSummary();
+  if (currentPage >= pages.length) return showNameInput();
   correctCount = 0;
   wrongCount = 0;
   renderPage();
@@ -327,9 +389,35 @@ function showRestingScreen(callback) {
   }, 1000);
 }
 
+function showNameInput() {
+  document.getElementById('grid').classList.add('hidden');
+  document.getElementById('header').classList.add('hidden');
+  document.getElementById('nameInputScreen').classList.remove('hidden');
+  document.getElementById('nameInputScreen').style.display = 'flex';
+  document.getElementById('playerNameInput').focus();
+}
+
+function submitName() {
+  const nameInput = document.getElementById('playerNameInput');
+  playerName = nameInput.value.trim();
+  
+  if (playerName === '') {
+    alert('Please enter your name before proceeding.');
+    return;
+  }
+  
+  document.getElementById('nameInputScreen').classList.add('hidden');
+  document.getElementById('nameInputScreen').style.display = 'none';
+  showSummary();
+}
+
 function showSummary() {
   document.getElementById('grid').classList.add('hidden');
   document.getElementById('header').classList.add('hidden');
+  
+  // 顯示玩家姓名
+  document.getElementById('playerNameDisplay').textContent = `Player: ${playerName}`;
+  
   const table = document.getElementById('summaryTable');
   
   // 移除 How Many Times Each Letter Appears 欄位
@@ -383,8 +471,23 @@ function showSummary() {
 }
 
 function exportCSV() {
+  // 取得當前日期時間
+  const now = new Date();
+  const dateTime = now.toLocaleString('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  
+  // CSV 開頭包含玩家資訊
+  let csv = `Player Name: ${playerName}\n`;
+  csv += `Test Date: ${dateTime}\n\n`;
+  
   // 主要資料CSV（移除 How Many Times Each Letter Appears）
-  let csv = 'Page,Letter,Correct,Wrong,Total Letters,Accuracy,Time\n';
+  csv += 'Page,Letter,Correct,Wrong,Total Letters,Accuracy,Time\n';
   data.forEach(row => {
     csv += `${row.page},${row.letter},${row.correct},${row.wrong},${row.totalLetters},${row.accuracy},${row.time}\n`;
   });
@@ -407,7 +510,10 @@ function exportCSV() {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = 'letter_finder_results.csv';
+  
+  // 檔案名稱包含玩家姓名和日期
+  const fileName = `letter_finder_results_${playerName}_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.csv`;
+  link.download = fileName;
   link.click();
 }
 
@@ -422,6 +528,14 @@ function startGame() {
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('startBtn').addEventListener('click', startGame);
   document.getElementById('csvBtn').addEventListener('click', exportCSV);
+  document.getElementById('submitNameBtn').addEventListener('click', submitName);
+  
+  // 支援按 Enter 鍵提交姓名
+  document.getElementById('playerNameInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      submitName();
+    }
+  });
   
   // 初始化隱藏遊戲元素
   document.getElementById('grid').classList.add('hidden');
